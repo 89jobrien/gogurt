@@ -25,7 +25,7 @@ func New() (types.LLM, error) {
 
 	model := os.Getenv("OLLAMA_MODEL")
 	if model == "" {
-		model = "llama3"
+		model = "llama3.2:3b"
 	}
 
 	// ollamaURL, err := url.Parse(host)
