@@ -11,6 +11,7 @@ type Config struct {
 	LLMProvider string
 	OllamaHost string
 	OllamaModel string
+	OllamaEmbedModel string
 	AzureOpenAIEndpoint string
 	AzureOpenAIAPIKey string
 	AzureDeployment string
@@ -26,6 +27,7 @@ func Load() *Config {
 		LLMProvider: getEnv("LLM_PROVIDER", "openai"),
 		OllamaHost: getEnv("OLLAMA_HOST", "http://localhost:11434"),
 		OllamaModel: getEnv("OLLAMA_MODEL", "llama3.2:3b"),
+		OllamaEmbedModel: getEnv("OLLAMA_EMBED_MODEL", "llama3.2:3b"),
 		AzureOpenAIEndpoint: getEnv("AZURE_OPENAI_ENDPOINT", ""),
 		AzureOpenAIAPIKey: getEnv("AZURE_OPENAI_API_KEY", ""),
 		AzureDeployment: getEnv("AZURE_OPENAI_DEPLOYMENT_NAME", ""),

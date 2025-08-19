@@ -21,3 +21,9 @@ type ChatMessage struct {
 type LLM interface {
 	Generate(ctx context.Context, messages []ChatMessage) (*ChatMessage, error)
 }
+
+// Document represents a chunk of text from a source.
+type Document struct {
+	PageContent string
+	Metadata    map[string]interface{}
+}
