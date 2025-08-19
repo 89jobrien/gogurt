@@ -68,13 +68,37 @@ The application will first set up the RAG pipeline by loading and processing `do
 
 ```
 $ go run main.go
-{"time":"2025-08-19T19:37:00.000-04:00","level":"INFO","msg":"Setting up RAG pipeline..."}
-{"time":"2025-08-19T19:37:00.000-04:00","level":"INFO","msg":"RAG pipeline setup complete."}
-{"time":"2025-08-19T19:37:00.000-04:00","level":"INFO","msg":"Chat session started. Type 'exit' to end."}
-You: What is Gogurt?
-AI: Gogurt is a powerful, Go-based AI agent framework created in 2025. It's designed for building modular AI applications and supports multiple Large Language Models.
+{"time":"2025-08-19T19:48:34.394173-04:00","level":"INFO","msg":"Using Ollama LLM"}
+{"time":"2025-08-19T19:48:34.394322-04:00","level":"INFO","msg":"Setting up RAG pipeline..."}
+{"time":"2025-08-19T19:48:35.07571-04:00","level":"INFO","msg":"RAG pipeline setup complete."}
+{"time":"2025-08-19T19:48:35.075724-04:00","level":"INFO","msg":"Chat session started. Type 'exit' to end."}
+You: what is gogurt?
+AI: According to the context, Gogurt is a modular framework that allows you to create AI agents.
+You: who develops it?
+AI: According to the context, Gogurt is being developed by an engineer named Joe.
+You: what is the file structure?
+AI: According to the context, the file structure of Gogurt is as follows:
+
+```
+
+/gogurt
+|-- /agent
+| |-- agent.go
+|-- /config
+| |-- config.go
+|-
+| |-- config.go
+|-- /documentloaders
+| |-- /text
+| |-- text.go
+|-- /embeddings
+| |-- /ol
+
+```
+
+This appears to be a hierarchical directory structure, with nested directories for different components of the Gogurt framework.
 You: exit
-{"time":"2025-08-19T19:38:00.000-04:00","level":"INFO","msg":"Ending chat session."}
+{"time":"2025-08-19T19:50:13.055-04:00","level":"INFO","msg":"Ending chat session."}
 ```
 
 ## Project Structure
