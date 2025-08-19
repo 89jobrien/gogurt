@@ -3,6 +3,7 @@ package ollama
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"gogurt/config"
 	"gogurt/types"
@@ -43,11 +44,14 @@ func (o *Ollama) Generate(ctx context.Context, messages []types.ChatMessage) (*t
 		Messages: apiMessages,
 	}
 
-	var responseMessage types.ChatMessage
+	var responseContent strings.Builder
+	var responseRole types.Role
+
 	err := o.client.Chat(ctx, req, func(res api.ChatResponse) error {
-		responseMessage = types.ChatMessage{
-			Role:    types.Role(res.Message.Role),
-			Content: res.Message.Content,
+		responseContent.WriteString(res.Message.Content)
+
+		if responseRole == "" {
+			responseRole = types.Role(res.Message.Role)
 		}
 		return nil
 	})
@@ -56,5 +60,12 @@ func (o *Ollama) Generate(ctx context.Context, messages []types.ChatMessage) (*t
 		return nil, err
 	}
 
-	return &responseMessage, nil
+	if responseRole == "" {
+		responseRole = types.RoleAssistant
+	}
+
+	return &types.ChatMessage{
+		Role:    responseRole,
+		Content: responseContent.String(),
+	}, nil
 }
