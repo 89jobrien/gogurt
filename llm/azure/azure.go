@@ -1,9 +1,9 @@
+// In llm/azure/azure.go
 package azure
 
 import (
 	"context"
 	"fmt"
-	"os"
 
 	"gogurt/config"
 	"gogurt/types"
@@ -17,23 +17,24 @@ type Azure struct {
 }
 
 func New(cfg *config.Config) (types.LLM, error) {
-    key := ""
-    if cfg != nil {
-        key = cfg.AzureOpenAIAPIKey
-    }
-    if key == "" {
-        key = os.Getenv("AZURE_KEY")
-    }
-    if key == "" {
-        return nil, fmt.Errorf("azure key not provided")
-    }
-	
-	client := openai.NewClient(cfg.AzureOpenAIAPIKey)
-	deploymentName := cfg.AzureDeployment
+	// Validate that the required configuration is present.
+	if cfg.AzureOpenAIAPIKey == "" {
+		return nil, fmt.Errorf("azure api key not provided")
+	}
+	if cfg.AzureOpenAIEndpoint == "" {
+		return nil, fmt.Errorf("azure endpoint not provided")
+	}
+	if cfg.AzureDeployment == "" {
+		return nil, fmt.Errorf("azure deployment name not provided")
+	}
+
+	// Use the specific Azure configuration from the go-openai library.
+	config := openai.DefaultAzureConfig(cfg.AzureOpenAIAPIKey, cfg.AzureOpenAIEndpoint)
+	client := openai.NewClientWithConfig(config)
 
 	return &Azure{
 		client:         client,
-		deploymentName: deploymentName,
+		deploymentName: cfg.AzureDeployment,
 	}, nil
 }
 
@@ -56,6 +57,10 @@ func (a *Azure) Generate(ctx context.Context, messages []types.ChatMessage) (*ty
 
 	if err != nil {
 		return nil, err
+	}
+    
+    if len(resp.Choices) == 0 {
+		return nil, fmt.Errorf("no choices returned from Azure OpenAI")
 	}
 
 	responseMessage := resp.Choices[0].Message
