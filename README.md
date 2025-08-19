@@ -79,8 +79,6 @@ AI: According to the context, Gogurt is being developed by an engineer named Joe
 You: what is the file structure?
 AI: According to the context, the file structure of Gogurt is as follows:
 
-```
-
 /gogurt
 |-- /agent
 | |-- agent.go
@@ -93,8 +91,6 @@ AI: According to the context, the file structure of Gogurt is as follows:
 | |-- text.go
 |-- /embeddings
 | |-- /ol
-
-```
 
 This appears to be a hierarchical directory structure, with nested directories for different components of the Gogurt framework.
 You: exit
