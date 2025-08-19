@@ -5,7 +5,7 @@ import (
 	"gogurt/types"
 )
 
-// Example implementation that satisfies agent.LLM
+// Example implementation
 type MyLLM struct{}
 
 func (m *MyLLM) Generate(ctx context.Context, messages []types.ChatMessage) (*types.ChatMessage, error) {
