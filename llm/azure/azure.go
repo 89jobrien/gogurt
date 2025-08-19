@@ -1,4 +1,3 @@
-// In llm/azure/azure.go
 package azure
 
 import (
