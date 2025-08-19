@@ -35,7 +35,7 @@ func (o *OpenAI) Generate(ctx context.Context, messages []types.ChatMessage) (*t
 	resp, err := o.client.CreateChatCompletion(
 		ctx,
 		openai.ChatCompletionRequest{
-			Model:    openai.GPT4o, // Using a more recent model
+			Model:    openai.GPT4oMini, // Using a more recent model
 			Messages: apiMessages,
 		},
 	)
