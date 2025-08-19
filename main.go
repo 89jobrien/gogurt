@@ -1,12 +1,15 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"fmt"
 	"log"
 	"os"
+	"strings"
 
 	"gogurt/agent"
+	"gogurt/config"
 	"gogurt/llm/azure"
 	"gogurt/llm/ollama"
 	"gogurt/llm/openai"
@@ -28,28 +31,34 @@ func GetWeather(input WeatherInput) (string, error) {
 }
 
 // getLLM initializes and returns the selected LLM client.
-func getLLM() types.LLM {
-	llmProvider := os.Getenv("LLM_PROVIDER")
-	switch llmProvider {
+func getLLM(cfg *config.Config) types.LLM {
+	var llm types.LLM
+	var err error
+
+	switch cfg.LLMProvider {
 	case "azure":
-		fmt.Println("Using Azure OpenAI LLM")
-		return azure.New()
+		fmt.Println("Using Azure LLM")
+		llm, err = azure.New(cfg)
 	case "ollama":
 		fmt.Println("Using Ollama LLM")
-		ollamaLLM, err := ollama.New()
-		if err != nil {
-			log.Fatalf("failed to create ollama client: %v", err)
-		}
-		return ollamaLLM
+		llm, err = ollama.New(cfg)
 	default:
 		fmt.Println("Using OpenAI LLM")
-		return openai.New()
+		llm, err = openai.New(cfg)
 	}
+
+	if err != nil {
+		log.Fatalf("failed to create LLM: %v", err)
+	}
+	return llm
 }
 
 func main() {
-	// Initialize the LLM based on the environment variable
-	llmClient := getLLM()
+	// Initialize the configuration
+	cfg := config.Load()
+
+	// Initialize the LLM based on the configuration
+	llmClient := getLLM(cfg)
 
 	// Create a new tool for getting the weather
 	weatherTool, err := tools.New(GetWeather, "Get the weather for a city")
@@ -60,8 +69,13 @@ func main() {
 	// Create a new agent
 	aiAgent := agent.New(llmClient, weatherTool)
 
-	// Run the agent with a prompt
-	prompt := "What's the weather like in New York?"
+	// Read prompt from the command line
+	reader := bufio.NewReader(os.Stdin)
+	fmt.Print("Enter a prompt: ")
+	prompt, _ := reader.ReadString('\n')
+	prompt = strings.TrimSpace(prompt)
+
+	// Run the agent with the prompt
 	response, err := aiAgent.Run(context.Background(), prompt)
 	if err != nil {
 		log.Fatalf("agent run failed: %v", err)

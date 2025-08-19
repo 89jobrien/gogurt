@@ -1,3 +1,4 @@
+// In agent/agent.go
 package agent
 
 import (
@@ -11,9 +12,9 @@ import (
 )
 
 type Agent struct {
-    llm    types.LLM
-    tools  []*tools.Tool
-    memory []types.ChatMessage
+	llm    types.LLM
+	tools  []*tools.Tool
+	memory []types.ChatMessage
 }
 
 func New(llm types.LLM, tools ...*tools.Tool) *Agent {
@@ -23,20 +24,19 @@ func New(llm types.LLM, tools ...*tools.Tool) *Agent {
 	}
 }
 
-// Run executes the agent with a given prompt.
 func (a *Agent) Run(ctx context.Context, prompt string) (string, error) {
 	a.memory = append(a.memory, types.ChatMessage{Role: types.RoleUser, Content: prompt})
 
-	for {
+	// Add a limit to prevent infinite loops
+	for range 10 {
 		response, err := a.llm.Generate(ctx, a.memory)
 		if err != nil {
-			return "", err
+			return "", fmt.Errorf("failed to generate response from LLM: %w", err)
 		}
 
 		a.memory = append(a.memory, *response)
 
-		// Check if the response is a tool call
-		if after, ok :=strings.CutPrefix(response.Content, "TOOL_CALL:"); ok  {
+		if after, ok := strings.CutPrefix(response.Content, "TOOL_CALL:"); ok {
 			toolCall := after
 			var toolData map[string]string
 			if err := json.Unmarshal([]byte(toolCall), &toolData); err != nil {
@@ -60,6 +60,8 @@ func (a *Agent) Run(ctx context.Context, prompt string) (string, error) {
 			return response.Content, nil
 		}
 	}
+
+	return "", fmt.Errorf("agent reached iteration limit")
 }
 
 func (a *Agent) findTool(name string) (*tools.Tool, error) {

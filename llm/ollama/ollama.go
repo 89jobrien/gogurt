@@ -3,10 +3,8 @@ package ollama
 import (
 	"context"
 	"fmt"
-	// "net/url"
-	"os"
 
-	// "gogurt/agent"
+	"gogurt/config"
 	"gogurt/types"
 
 	"github.com/ollama/ollama/api"
@@ -17,22 +15,8 @@ type Ollama struct {
 	model  string
 }
 
-func New() (types.LLM, error) {
-	host := os.Getenv("OLLAMA_HOST")
-	if host == "" {
-		host = "http://localhost:11434"
-	}
-
-	model := os.Getenv("OLLAMA_MODEL")
-	if model == "" {
-		model = "llama3.2:3b"
-	}
-
-	// ollamaURL, err := url.Parse(host)
-	// if err != nil {
-	// 	return nil, fmt.Errorf("failed to parse ollama host: %w", err)
-	// }
-
+// Update New to accept the config
+func New(cfg *config.Config) (types.LLM, error) {
 	client, err := api.ClientFromEnvironment()
 	if err != nil {
 		return nil, fmt.Errorf("failed to create ollama client: %w", err)
@@ -40,7 +24,7 @@ func New() (types.LLM, error) {
 
 	return &Ollama{
 		client: client,
-		model:  model,
+		model:  cfg.OllamaModel,
 	}, nil
 }
 

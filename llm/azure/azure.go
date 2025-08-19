@@ -2,8 +2,10 @@ package azure
 
 import (
 	"context"
+	"fmt"
 	"os"
 
+	"gogurt/config"
 	"gogurt/types"
 
 	"github.com/sashabaranov/go-openai"
@@ -14,19 +16,25 @@ type Azure struct {
 	deploymentName string
 }
 
-func New() types.LLM {
-	endpoint := os.Getenv("AZURE_OPENAI_ENDPOINT")
-	apiKey := os.Getenv("AZURE_OPENAI_API_KEY")
-	deploymentName := os.Getenv("AZURE_OPENAI_DEPLOYMENT_NAME")
-
-	config := openai.DefaultAzureConfig(apiKey, endpoint)
-
-	client := openai.NewClientWithConfig(config)
+func New(cfg *config.Config) (types.LLM, error) {
+    key := ""
+    if cfg != nil {
+        key = cfg.AzureOpenAIAPIKey
+    }
+    if key == "" {
+        key = os.Getenv("AZURE_KEY")
+    }
+    if key == "" {
+        return nil, fmt.Errorf("azure key not provided")
+    }
+	
+	client := openai.NewClient(cfg.AzureOpenAIAPIKey)
+	deploymentName := cfg.AzureDeployment
 
 	return &Azure{
 		client:         client,
 		deploymentName: deploymentName,
-	}
+	}, nil
 }
 
 func (a *Azure) Generate(ctx context.Context, messages []types.ChatMessage) (*types.ChatMessage, error) {

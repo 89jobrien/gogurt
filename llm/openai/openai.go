@@ -2,8 +2,10 @@ package openai
 
 import (
 	"context"
+	"fmt"
 	"os"
 
+	"gogurt/config"
 	"gogurt/types"
 
 	"github.com/sashabaranov/go-openai"
@@ -16,10 +18,20 @@ type OpenAI struct {
 
 // New creates a new OpenAI client.
 // The return type is the interface, which is correct.
-func New() types.LLM {
-    return &OpenAI{
-        client: openai.NewClient(os.Getenv("OPENAI_API_KEY")),
-    }
+func New(cfg *config.Config) (types.LLM, error) {
+	apiKey := ""
+	if cfg != nil {
+		apiKey = cfg.OpenAIAPIKey
+	}
+	if apiKey == "" {
+		apiKey = os.Getenv("OPENAI_API_KEY")
+	}
+	if apiKey == "" {
+		return nil, fmt.Errorf("openai api key not provided (config.OpenAIAPIKey or OPENAI_API_KEY)")
+	}
+
+	client := openai.NewClient(apiKey)
+	return &OpenAI{client: client}, nil
 }
 
 // Generate generates a response from the OpenAI API.
@@ -32,16 +44,16 @@ func (o *OpenAI) Generate(ctx context.Context, messages []types.ChatMessage) (*t
 		}
 	}
 
-	resp, err := o.client.CreateChatCompletion(
-		ctx,
-		openai.ChatCompletionRequest{
-			Model:    openai.GPT4oMini, // Using a more recent model
-			Messages: apiMessages,
-		},
-	)
-
+	resp, err := o.client.CreateChatCompletion(ctx, openai.ChatCompletionRequest{
+		Model:    openai.GPT4o,
+		Messages: apiMessages,
+	})
 	if err != nil {
 		return nil, err
+	}
+
+	if len(resp.Choices) == 0 {
+		return nil, fmt.Errorf("no choices returned from OpenAI")
 	}
 
 	responseMessage := resp.Choices[0].Message
