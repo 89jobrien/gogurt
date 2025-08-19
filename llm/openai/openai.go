@@ -11,13 +11,10 @@ import (
 	"github.com/sashabaranov/go-openai"
 )
 
-// OpenAI is a client for the OpenAI API.
 type OpenAI struct {
 	client *openai.Client
 }
 
-// New creates a new OpenAI client.
-// The return type is the interface, which is correct.
 func New(cfg *config.Config) (types.LLM, error) {
 	apiKey := ""
 	if cfg != nil {
@@ -34,7 +31,7 @@ func New(cfg *config.Config) (types.LLM, error) {
 	return &OpenAI{client: client}, nil
 }
 
-// Generate generates a response from the OpenAI API.
+// generates a response from the OpenAI API.
 func (o *OpenAI) Generate(ctx context.Context, messages []types.ChatMessage) (*types.ChatMessage, error) {
 	apiMessages := make([]openai.ChatCompletionMessage, len(messages))
 	for i, msg := range messages {
