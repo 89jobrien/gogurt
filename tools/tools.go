@@ -13,7 +13,7 @@ type Tool struct {
     InputSchema map[string]any
 }
 
-// creates a new Tool from a Go function with a required name argument
+// New creates a new Tool from a Go function with a required name argument
 func New(name string, f any, description string) (*Tool, error) {
     val := reflect.ValueOf(f)
     if val.Kind() != reflect.Func {
@@ -50,7 +50,8 @@ func (t *Tool) Call(jsonArgs string) (any, error) {
 	return results[0].Interface(), nil
 }
 
-// generateSchema creates a JSON schema from a Go type.
+// generateSchema creates a JSON schema from a Go type
+// TODO: make this more generic
 func generateSchema(t reflect.Type) (map[string]any, error) {
     schema := map[string]any{
         "type":       "object",
