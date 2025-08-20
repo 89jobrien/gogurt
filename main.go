@@ -4,7 +4,7 @@ import (
 	"bufio"
 	"context"
 	"gogurt/config"
-	"gogurt/pipelines"
+	"gogurt/pipes"
 	"log/slog"
 	"os"
 	"strings"
@@ -25,8 +25,8 @@ func main() {
 
 	cfg := config.Load()
 
-	var ragPipeline pipelines.Pipeline
-	ragPipeline, err := pipelines.NewRAG(context.Background(), cfg, documentPath)
+	var rag pipes.Pipe
+	rag, err := pipes.NewRAG(context.Background(), cfg, documentPath)
 	if err != nil {
 		slog.Error("failed to create RAG pipeline", "error", err)
 		os.Exit(1)
@@ -45,7 +45,7 @@ func main() {
 			break
 		}
 
-		response, err := ragPipeline.Run(context.Background(), prompt)
+		response, err := rag.Run(context.Background(), prompt)
 		if err != nil {
 			slog.Error("pipeline run failed", "error", err)
 			continue

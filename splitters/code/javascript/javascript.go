@@ -2,9 +2,13 @@ package javascript
 
 import "regexp"
 
-// parses a .js or .ts file and splits it by functions and classes.
+// Split parses a .js or .ts file and splits it by top-level
+// functions, classes, and variable declarations.
+// Each chunk starts at a match for: "function", "class", "const", "let", "var",
+// possibly preceded by "export", "default", and "async" modifiers.
+// Blank lines before a match stay with the previous chunk.
 func Split(content string) []string {
-	re := regexp.MustCompile(`(?m)^(\s*)(export |default |async )*(function|class|const|let|var)\s`)
+	re := regexp.MustCompile(`(?m)^\s*(?:export\s+)?(?:default\s+)?(?:async\s+)?(function|class|const|let|var)\s`)
 	matches := re.FindAllStringIndex(content, -1)
 
 	if len(matches) == 0 {

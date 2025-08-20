@@ -69,7 +69,7 @@ func GetVectorStore(cfg *config.Config, embedder embeddings.Embedder) vectorstor
 		slog.Info("Using Chroma vector store")
 		store, err = chroma.New(context.Background(), cfg.ChromaURL, embedder)
 	default:
-		slog.Info("Using simple in-memory vector store")
+		slog.Info("Using in-memory vector store")
 		store = simple.New(embedder)
 	}
 

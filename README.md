@@ -145,17 +145,19 @@ You: exit
 **Using `docs/` directory:**
 
 ```plaintext
-{"time":"2025-08-19T20:54:50.265024-04:00","level":"INFO","msg":"No document path provided, loading from default 'docs/' directory"}
-{"time":"2025-08-19T20:54:50.265459-04:00","level":"INFO","msg":"Using Ollama LLM"}
-{"time":"2025-08-19T20:54:50.26549-04:00","level":"INFO","msg":"Setting up RAG pipeline..."}
-{"time":"2025-08-19T20:54:54.031033-04:00","level":"INFO","msg":"RAG pipeline setup complete.","documents_loaded":2,"chunks_created":204}
-{"time":"2025-08-19T20:54:54.031072-04:00","level":"INFO","msg":"Chat session started. Type 'exit' to end."}
-You: what is Gogurt?
-AI: Based on the context, Gogurt appears to be an open-source, modular framework for creating AI agents.
-You: who is Joseph OBrien?
-AI: Based on the context, Joseph O'Brien is a developer and appears to be a professional with expertise in his field, as mentioned on Toptal's website.
+{"time":"2025-08-20T00:40:55.758264-04:00","level":"INFO","msg":"No document path provided, loading from default 'docs/' directory"}
+{"time":"2025-08-20T00:40:55.758811-04:00","level":"INFO","msg":"Setting up RAG pipeline..."}
+{"time":"2025-08-20T00:40:55.75885-04:00","level":"INFO","msg":"Using Ollama for LLM"}
+{"time":"2025-08-20T00:40:55.797159-04:00","level":"INFO","msg":"Using recursive text splitter"}
+{"time":"2025-08-20T00:40:55.79732-04:00","level":"INFO","msg":"Using simple in-memory vector store"}
+{"time":"2025-08-20T00:40:58.37175-04:00","level":"INFO","msg":"RAG pipeline setup complete.","documents_loaded":3,"chunks_created":52}
+{"time":"2025-08-20T00:40:58.371791-04:00","level":"INFO","msg":"Chat session started. Type 'exit' to end."}
+You: what is gogurt?
+AI: According to the context, Gogurt is a modular framework that allows you to create AI agents.
+You: who is Joseph O'Brien?
+AI: Based on the context, Joseph O'Brien is a developer with a presence on Toptal.
 You: exit
-{"time":"2025-08-19T20:55:42.212768-04:00","level":"INFO","msg":"Ending chat session."}
+{"time":"2025-08-20T00:41:46.183651-04:00","level":"INFO","msg":"Ending chat session."}
 ```
 
 ## Project Structure

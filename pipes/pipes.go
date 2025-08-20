@@ -1,7 +1,7 @@
-package pipelines
+package pipes
 
 import "context"
 
-type Pipeline interface {
+type Pipe interface {
 	Run(ctx context.Context, prompt string) (string, error)
 }

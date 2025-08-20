@@ -1,4 +1,4 @@
-package pipelines
+package pipes
 
 import (
 	"context"
@@ -7,23 +7,29 @@ import (
 	"gogurt/config"
 	"gogurt/documentloaders"
 	"gogurt/factories"
+	"gogurt/prompts"
 	"gogurt/vectorstores"
 	"log/slog"
 	"strings"
 )
 
-type RAGPipeline struct {
+type RAGPipe struct {
 	vectorStore  vectorstores.VectorStore
 	agent        *agent.Agent
+	prompt       *prompts.PromptTemplate
 	hasDocuments bool
 }
 
-// creates and initializes a new RAG pipeline
-func NewRAG(ctx context.Context, cfg *config.Config, documentPath string) (*RAGPipeline, error) {
+func NewRAG(ctx context.Context, cfg *config.Config, documentPath string) (*RAGPipe, error) {
 	slog.Info("Setting up RAG pipeline...")
 
 	llmClient := factories.GetLLM(cfg)
 	aiAgent := agent.New(llmClient, cfg.AgentMaxIterations)
+
+	ragPrompt, err := prompts.NewPromptTemplate(prompts.RagPrompt)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create prompt template: %w", err)
+	}
 
 	docs, err := documentloaders.LoadDocuments(documentPath)
 	if err != nil {
@@ -31,8 +37,9 @@ func NewRAG(ctx context.Context, cfg *config.Config, documentPath string) (*RAGP
 	}
 	if len(docs) == 0 {
 		slog.Warn("No documents were loaded. The agent will run without retrieval context.")
-		return &RAGPipeline{
+		return &RAGPipe{
 			agent:        aiAgent,
+			prompt:       ragPrompt,
 			hasDocuments: false,
 		}, nil
 	}
@@ -49,15 +56,15 @@ func NewRAG(ctx context.Context, cfg *config.Config, documentPath string) (*RAGP
 
 	slog.Info("RAG pipeline setup complete.", "documents_loaded", len(docs), "chunks_created", len(chunks))
 
-	return &RAGPipeline{
+	return &RAGPipe{
 		vectorStore:  vectorStore,
 		agent:        aiAgent,
+		prompt:       ragPrompt,
 		hasDocuments: true,
 	}, nil
 }
 
-// executes a query against the RAG pipeline.
-func (p *RAGPipeline) Run(ctx context.Context, prompt string) (string, error) {
+func (p *RAGPipe) Run(ctx context.Context, prompt string) (string, error) {
 	augmentedPrompt := prompt
 
 	if p.hasDocuments {
@@ -71,13 +78,13 @@ func (p *RAGPipeline) Run(ctx context.Context, prompt string) (string, error) {
 			contextBuilder.WriteString(doc.PageContent + "\n")
 		}
 
-		augmentedPrompt = fmt.Sprintf(`
-			Answer the following question based on this context:
-			---
-			Context:
-			%s
-			---
-			Question: %s`, contextBuilder.String(), prompt)
+		augmentedPrompt, err = p.prompt.Format(map[string]string{
+			"context":  contextBuilder.String(),
+			"question": prompt,
+		})
+		if err != nil {
+			return "", fmt.Errorf("failed to format prompt: %w", err)
+		}
 	}
 
 	response, err := p.agent.Run(ctx, augmentedPrompt)

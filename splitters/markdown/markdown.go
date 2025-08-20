@@ -1,7 +1,6 @@
 package markdown
 
 import (
-	"bytes"
 	"gogurt/splitters/recursive"
 	"gogurt/types"
 	"strings"
@@ -27,45 +26,50 @@ func (s *MarkdownSplitter) SplitDocuments(docs []types.Document) []types.Documen
 	recursiveMarkdownSplitter := recursive.New(s.ChunkSize, s.ChunkOverlap)
 
 	for _, doc := range docs {
+		if strings.TrimSpace(doc.PageContent) == "" {
+			continue
+		}
+
 		reader := text.NewReader([]byte(doc.PageContent))
 		rootNode := mdParser.Parse(reader)
 
-		var headerChunks []string
-		var currentChunk bytes.Buffer
+		var chunks []string
+		var currentChunk strings.Builder
 
-		ast.Walk(rootNode, func(n ast.Node, entering bool) (ast.WalkStatus, error) {
-			if entering {
-				if n.Kind() == ast.KindHeading {
-					if currentChunk.Len() > 0 {
-						headerChunks = append(headerChunks, strings.TrimSpace(currentChunk.String()))
-						currentChunk.Reset()
-					}
-				}
+		for n := rootNode.FirstChild(); n != nil; n = n.NextSibling() {
+			if n.Kind() == ast.KindHeading && currentChunk.Len() > 0 {
+				chunks = append(chunks, strings.TrimSpace(currentChunk.String()))
+				currentChunk.Reset()
+			}
+
+			lines := n.Lines()
+			for i := 0; i < lines.Len(); i++ {
+				line := lines.At(i)
+				currentChunk.Write(line.Value(reader.Source()))
+				currentChunk.WriteString("\n")
+			}
+
+			if n.Kind() == ast.KindHeading {
+				// normalize header text spacing but keep original internal whitespace
+				headerText := strings.TrimRight(currentChunk.String(), "\n")
+				// headerText2 := strings.SplitAfter(headerText, "# ")[1]
+				// headerText3 := strings.TrimSpace(headerText2)
 				
-				if n.Type() == ast.TypeBlock || n.Type() == ast.TypeInline {
-					lines := n.Lines()
-					for i := 0; i < lines.Len(); i++ {
-						line := lines.At(i)
-						currentChunk.Write(line.Value(reader.Source()))
-					}
-					if n.Type() == ast.TypeBlock && n.Kind() != ast.KindDocument {
-						currentChunk.WriteString("\n")
-					}
+				currentChunk.Reset()
+				currentChunk.WriteString(headerText)
+				if n.NextSibling() != nil {
+					currentChunk.WriteString("\n\n")
 				}
 			}
-			return ast.WalkContinue, nil
-		})
-
-		if currentChunk.Len() > 0 {
-			headerChunks = append(headerChunks, strings.TrimSpace(currentChunk.String()))
 		}
 
-		for _, chunk := range headerChunks {
-			if len(chunk) == 0 {
-				continue
-			}
+		if currentChunk.Len() > 0 {
+			chunks = append(chunks, strings.TrimSpace(currentChunk.String()))
+		}
+
+		for _, chunk := range chunks {
 			if len(chunk) > s.ChunkSize {
-				subChunks := recursiveMarkdownSplitter.SplitDocuments([]types.Document{{PageContent: chunk}})
+				subChunks := recursiveMarkdownSplitter.SplitDocuments([]types.Document{{PageContent: chunk, Metadata: doc.Metadata}})
 				finalChunks = append(finalChunks, subChunks...)
 			} else {
 				finalChunks = append(finalChunks, types.Document{
