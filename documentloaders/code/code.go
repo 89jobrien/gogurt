@@ -5,7 +5,7 @@ import (
 	"os"
 )
 
-// reads a source code file from a given path.
+// reads a source code file from a given path
 func NewCodeLoader(filePath string) ([]types.Document, error) {
 	content, err := os.ReadFile(filePath)
 	if err != nil {
