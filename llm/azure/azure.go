@@ -3,6 +3,8 @@ package azure
 import (
 	"context"
 	"fmt"
+	"io"
+	"strings"
 
 	"gogurt/config"
 	"gogurt/types"
@@ -57,8 +59,8 @@ func (a *Azure) Generate(ctx context.Context, messages []types.ChatMessage) (*ty
 	if err != nil {
 		return nil, err
 	}
-    
-    if len(resp.Choices) == 0 {
+
+	if len(resp.Choices) == 0 {
 		return nil, fmt.Errorf("no choices returned from Azure OpenAI")
 	}
 
@@ -66,5 +68,67 @@ func (a *Azure) Generate(ctx context.Context, messages []types.ChatMessage) (*ty
 	return &types.ChatMessage{
 		Role:    types.Role(responseMessage.Role),
 		Content: responseMessage.Content,
+	}, nil
+}
+
+// Stream streams the model output. onToken is called for each streamed chunk.
+func (a *Azure) Stream(ctx context.Context, messages []types.ChatMessage, onToken func(token string) error) (*types.ChatMessage, error) {
+	apiMessages := make([]openai.ChatCompletionMessage, len(messages))
+	for i, msg := range messages {
+		apiMessages[i] = openai.ChatCompletionMessage{
+			Role:    string(msg.Role),
+			Content: msg.Content,
+		}
+	}
+
+	req := openai.ChatCompletionRequest{
+		Model:    a.deploymentName,
+		Messages: apiMessages,
+		Stream:   true,
+	}
+
+	stream, err := a.client.CreateChatCompletionStream(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+	defer stream.Close()
+
+	var responseContent strings.Builder
+	var responseRole types.Role
+
+	for {
+		part, err := stream.Recv()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return nil, err
+		}
+
+		for _, choice := range part.Choices {
+			// Role may be sent in Delta.Role
+			if responseRole == "" && choice.Delta.Role != "" {
+				responseRole = types.Role(choice.Delta.Role)
+			}
+
+			if choice.Delta.Content != "" {
+				token := choice.Delta.Content
+				// Forward token to callback
+				if err := onToken(token); err != nil {
+					// stop streaming if callback requests it
+					return nil, err
+				}
+				responseContent.WriteString(token)
+			}
+		}
+	}
+
+	if responseRole == "" {
+		responseRole = types.RoleAssistant
+	}
+
+	return &types.ChatMessage{
+		Role:    responseRole,
+		Content: responseContent.String(),
 	}, nil
 }
