@@ -3,6 +3,7 @@ package config
 import (
 	"log"
 	"os"
+	"strconv"
 
 	"github.com/joho/godotenv"
 )
@@ -16,12 +17,15 @@ type Config struct {
 	AzureOpenAIAPIKey   string
 	AzureDeployment     string
 	OpenAIAPIKey        string
+	AgentMaxIterations int
+	SplitterProvider   string
 }
 
 func Load() *Config {
 	if err := godotenv.Load(); err != nil {
 		log.Println("No .env file found")
 	}
+	maxIter, _ := strconv.Atoi(getEnv("AGENT_MAX_ITERATIONS", "10"))
 
 	return &Config{
 		LLMProvider:         getEnv("LLM_PROVIDER", "openai"),
@@ -32,6 +36,8 @@ func Load() *Config {
 		AzureOpenAIAPIKey:   getEnv("AZURE_OPENAI_API_KEY", ""),
 		AzureDeployment:     getEnv("AZURE_OPENAI_DEPLOYMENT_NAME", ""),
 		OpenAIAPIKey:        getEnv("OPENAI_API_KEY", ""),
+		AgentMaxIterations: maxIter,
+		SplitterProvider:   getEnv("SPLITTER_PROVIDER", "recursive"),
 	}
 }
 

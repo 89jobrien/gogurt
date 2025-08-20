@@ -14,20 +14,22 @@ type Agent struct {
 	llm    types.LLM
 	tools  []*tools.Tool
 	memory []types.ChatMessage
+	MaxIterations int
 }
 
-func New(llm types.LLM, tools ...*tools.Tool) *Agent {
+func New(llm types.LLM, maxIterations int, tools ...*tools.Tool) *Agent {
 	return &Agent{
-		llm:   llm,
-		tools: tools,
+		llm:           llm,
+		tools:         tools,
+		MaxIterations: maxIterations,
 	}
 }
 
 func (a *Agent) Run(ctx context.Context, prompt string) (string, error) {
 	a.memory = append(a.memory, types.ChatMessage{Role: types.RoleUser, Content: prompt})
 
-	// add a limit to prevent infinite loops
-	for range 10 {
+	// max iterations is used to prevent infinite loops
+	for i := 0; i < a.MaxIterations; i++ {
 		response, err := a.llm.Generate(ctx, a.memory)
 		if err != nil {
 			return "", fmt.Errorf("failed to generate response from LLM: %w", err)

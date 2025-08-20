@@ -5,16 +5,22 @@ Gogurt is a modular framework that allows you to create AI agents.
 ## Features
 
 - **Multiple LLM Providers**: Supports OpenAI, Azure OpenAI, and Ollama.
+- **Pluggable Vector Stores**: Choose between a simple in-memory vector store or a persistent ChromaDB instance.
+- **Retrieval-Augmented Generation (RAG)**: Ingest documents (`.txt`, `.pdf`, `.md`) and use a configurable text splitter (`recursive`, `markdown`, `character`) to optimize context retrieval.
 - **Tool Use**: Easily create and add tools for the agent to use.
-- **Retrieval-Augmented Generation (RAG)**: Ask questions about your own documents. The agent can read a local text file to provide context-aware answers.
 - **Extensible**: Designed to be easily extended with new LLMs and tools.
 
 ## Getting Started
 
 ### Prerequisites
 
-- Go 1.25.0 or later
-- For local inference: Ensure you have a running Ollama instance with a chat model and a model that supports embeddings
+- **Go**: Version 1.25 or later
+- **Ollama**: For running local LLMs and embedding models
+- **Poppler**: Required for .pdf document parsing
+  - **macOS**: brew install poppler
+  - **Debian/Ubuntu**: sudo apt-get install poppler-utils
+  - **Windows**: I don't know. Use a better OS?
+- **Docker**: Required if you plan to use the ChromaDB vector store.
 
 ### Installation
 
@@ -31,28 +37,42 @@ Gogurt is a modular framework that allows you to create AI agents.
     go mod tidy
     ```
 
-3.  **Create a Knowledge Base**
-    Create a file named `docs.txt` in the root of the project. This will be the document your agent reads from. Add some text to it, for example:
+3.  **Create Documents Directory**:
+    Create a `docs/` directory in the project root and add any `.txt`, `.pdf`, or `.md` files you want the agent to learn from.
 
-    ```text
-    Gogurt is a powerful, Go-based AI agent framework.
-    It was created in 2025 and is designed for building modular and extensible AI applications.
-    The framework supports multiple Large Language Models, including providers like Ollama, OpenAI, and Azure.
-    ```
+        ```bash
+        mkdir docs
+        cp path/to/your/file.pdf docs/
+        ```
 
-4.  Create a `.env` file by copying the example:
+4.  **Configure Environment**:
+    Copy the example environment file and edit it to match your setup.
 
     ```bash
     cp .env.example .env
     ```
 
-5.  Edit the `.env` file to configure the LLM provider. For the RAG pipeline, ensure `LLM_PROVIDER`, `OLLAMA_EMBED_MODEL` and `OLLAMA_MODEL` are set correctly.
+    See the **Configuration** section below for a detailed explanation of each variable.
 
-    ```env
-    LLM_PROVIDER=ollama
-    OLLAMA_MODEL=llama3.2:3b
-    OLLAMA_EMBED_MODEL=nomic-embed-text:latest
-    ```
+---
+
+## Configuration
+
+All configuration is managed through the `.env` file.
+
+| Variable                | Default                 | Description                                                              |
+| ----------------------- | ----------------------- | ------------------------------------------------------------------------ |
+| `LLM_PROVIDER`          | `ollama`                | The chat model provider. Options: `ollama`, `openai`, `azure`.           |
+| `OLLAMA_MODEL`          | `llama3.2:3b`           | The Ollama model to use for chat generation.                             |
+| `OLLAMA_EMBED_MODEL`    | `llama3.2:3b`           | The Ollama model to use for creating document embeddings.                |
+| `AGENT_MAX_ITERATIONS`  | `10`                    | The maximum number of steps the agent can take to answer a query.        |
+| `SPLITTER_PROVIDER`     | `recursive`             | The text splitter to use. Options: `recursive`, `markdown`, `character`. |
+| `VECTOR_STORE_PROVIDER` | `simple`                | The vector store to use. Options: `simple` (in-memory), `chroma`.        |
+| `CHROMA_URL`            | `http://localhost:8000` | The URL for your running ChromaDB instance.                              |
+| `OPENAI_API_KEY`        | `your-api-key`          | Your API key for OpenAI.                                                 |
+| `AZURE_OPENAI_...`      | `your-key`              | Your credentials for Azure OpenAI services.                              |
+
+---
 
 ## Usage
 
@@ -77,7 +97,17 @@ go run main.go path/to/your/document.pdf
 go run main.go path/to/another/directory/
 ```
 
-### Example Sessions
+### Using with ChromaDB
+
+If you set `VECTOR_STORE_PROVIDER=chroma` in your `.env` file, you must first start a ChromaDB instance using Docker:
+
+```bash
+docker run -p 8000:8000 chromadb/chroma
+```
+
+Then, run the `gogurt` application as usual. Your document embeddings will be stored persistently in the ChromaDB container.
+
+## Example Sessions
 
 **Using `docs.txt`:**
 

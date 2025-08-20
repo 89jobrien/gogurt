@@ -1,4 +1,4 @@
-package splitter
+package splitters
 
 import "gogurt/types"
 
