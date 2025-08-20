@@ -77,9 +77,11 @@ go run main.go path/to/your/document.pdf
 go run main.go path/to/another/directory/
 ```
 
-### Example Session
+### Example Sessions
 
-```
+**Using `docs.txt`:**
+
+```plaintext
 $ go run main.go
 {"time":"2025-08-19T19:48:34.394173-04:00","level":"INFO","msg":"Using Ollama LLM"}
 {"time":"2025-08-19T19:48:34.394322-04:00","level":"INFO","msg":"Setting up RAG pipeline..."}
@@ -108,6 +110,20 @@ AI: According to the context, the file structure of Gogurt is as follows:
 This appears to be a hierarchical directory structure, with nested directories for different components of the Gogurt framework.
 You: exit
 {"time":"2025-08-19T19:50:13.055-04:00","level":"INFO","msg":"Ending chat session."}
+```
+
+**Using `docs/` directory:**
+
+```plaintext
+{"time":"2025-08-19T20:40:43.291317-04:00","level":"INFO","msg":"No document path provided, loading from default 'docs/' directory"}
+{"time":"2025-08-19T20:40:43.291952-04:00","level":"INFO","msg":"Using Ollama LLM"}
+{"time":"2025-08-19T20:40:43.291987-04:00","level":"INFO","msg":"Setting up RAG pipeline..."}
+{"time":"2025-08-19T20:40:45.940107-04:00","level":"INFO","msg":"RAG pipeline setup complete.","documents_loaded":1,"chunks_created":142}
+{"time":"2025-08-19T20:40:45.940156-04:00","level":"INFO","msg":"Chat session started. Type 'exit' to end."}
+You: who is Joseph O'Brien?
+AI: Based on the provided context, Joseph O'Brien is a developer (presumably a software developer with a presence on Toptal.)
+You: exit
+{"time":"2025-08-19T20:41:31.415392-04:00","level":"INFO","msg":"Ending chat session."}
 ```
 
 ## Project Structure
