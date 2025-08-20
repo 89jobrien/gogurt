@@ -106,7 +106,6 @@ func (a *Azure) Stream(ctx context.Context, messages []types.ChatMessage, onToke
 		}
 
 		for _, choice := range part.Choices {
-			// Role may be sent in Delta.Role
 			if responseRole == "" && choice.Delta.Role != "" {
 				responseRole = types.Role(choice.Delta.Role)
 			}

@@ -16,7 +16,6 @@ type Ollama struct {
 	model  string
 }
 
-// Update New to accept the config
 func New(cfg *config.Config) (types.LLM, error) {
 	client, err := api.ClientFromEnvironment()
 	if err != nil {
@@ -80,9 +79,11 @@ func (o *Ollama) Stream(ctx context.Context, messages []types.ChatMessage, onTok
 		}
 	}
 
+	stream := true
 	req := &api.ChatRequest{
 		Model:    o.model,
 		Messages: apiMessages,
+		Stream:   &stream,
 	}
 
 	var responseContent strings.Builder
