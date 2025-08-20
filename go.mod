@@ -8,14 +8,21 @@ require (
 )
 
 require (
+	github.com/amikos-tech/chroma-go v0.2.4
 	github.com/ledongthuc/pdf v0.0.0-20250511090121-5959a4027728
 	github.com/yuin/goldmark v1.7.13
 )
 
-require github.com/stretchr/testify v1.10.0 // indirect
+require (
+	github.com/Masterminds/semver v1.5.0 // indirect
+	github.com/google/uuid v1.6.0 // indirect
+	github.com/oklog/ulid v1.3.1 // indirect
+	github.com/pkg/errors v0.9.1 // indirect
+	github.com/yalue/onnxruntime_go v1.19.0 // indirect
+)
 
 require (
 	github.com/joho/godotenv v1.5.1
-	golang.org/x/crypto v0.36.0 // indirect
-	golang.org/x/sys v0.31.0 // indirect
+	golang.org/x/crypto v0.37.0 // indirect
+	golang.org/x/sys v0.32.0 // indirect
 )
