@@ -1,17 +1,19 @@
 package character
 
-import "gogurt/types"
+import (
+	"gogurt/types"
+)
 
-type Splitter struct {
+type CharSplitter struct {
 	ChunkSize   int
 	ChunkOverlap int
 }
 
-func New(chunkSize, chunkOverlap int) *Splitter {
-	return &Splitter{ChunkSize: chunkSize, ChunkOverlap: chunkOverlap}
+func New(chunkSize, chunkOverlap int) *CharSplitter {
+	return &CharSplitter{ChunkSize: chunkSize, ChunkOverlap: chunkOverlap}
 }
 
-func (s *Splitter) SplitDocuments(docs []types.Document) []types.Document {
+func (s *CharSplitter) SplitDocuments(docs []types.Document) []types.Document {
 	var chunks []types.Document
 	for _, doc := range docs {
 		content := doc.PageContent

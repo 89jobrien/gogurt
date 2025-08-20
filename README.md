@@ -13,7 +13,7 @@ Gogurt is a modular framework that allows you to create AI agents.
 
 ### Prerequisites
 
-- Go 1.22 or later
+- Go 1.25.0 or later
 - For local inference: Ensure you have a running Ollama instance with a chat model and a model that supports embeddings
 
 ### Installation

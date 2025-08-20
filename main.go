@@ -15,7 +15,7 @@ import (
 	"gogurt/llm/azure"
 	llmollama "gogurt/llm/ollama"
 	"gogurt/llm/openai"
-	"gogurt/textsplitter/character"
+	"gogurt/splitters/character"
 	"gogurt/types"
 	"gogurt/vectorstores/simple"
 )
