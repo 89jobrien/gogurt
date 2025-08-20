@@ -27,3 +27,8 @@ type Document struct {
 	PageContent string
 	Metadata    map[string]any
 }
+
+// interface that document loaders must satisfy
+type DocumentLoader interface {
+	LoadDocuments() ([]Document, error)
+}

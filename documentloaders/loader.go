@@ -9,6 +9,7 @@ import (
 	"gogurt/documentloaders/markdown"
 	"gogurt/documentloaders/pdf"
 	"gogurt/documentloaders/text"
+	"gogurt/documentloaders/code"
 	"gogurt/types"
 )
 
@@ -36,6 +37,8 @@ func loadFromFile(filePath string) ([]types.Document, error) {
 		return pdf.NewPDFLoader(filePath)
 	case ".md":
 		return markdown.NewMarkdownLoader(filePath)
+	case ".go", ".py", ".js", ".ts", ".java", ".cpp", ".c", ".rs":
+		return code.NewCodeLoader(filePath)
 	default:
 		return nil, fmt.Errorf("unsupported file type: %s", ext)
 	}
