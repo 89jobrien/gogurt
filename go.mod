@@ -7,7 +7,7 @@ require (
 	github.com/sashabaranov/go-openai v1.41.1
 )
 
-require rsc.io/pdf v0.1.1
+require github.com/ledongthuc/pdf v0.0.0-20250511090121-5959a4027728
 
 require github.com/stretchr/testify v1.10.0 // indirect
 

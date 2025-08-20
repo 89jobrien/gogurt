@@ -1,40 +1,36 @@
 package pdf
 
 import (
+	"bytes"
 	"gogurt/types"
-	"strings"
+	"io"
 
-	"rsc.io/pdf"
+	"github.com/ledongthuc/pdf"
 )
 
-// NewPDFLoader reads a PDF file from a given path and extracts its text.
+// reads a PDF using the pdftotext utility for higher accuracy.
 func NewPDFLoader(filePath string) ([]types.Document, error) {
-	reader, err := pdf.Open(filePath)
+	f, r, err := pdf.Open(filePath)
+	if err != nil {
+		return nil, err
+	}
+	// the library requires the reader to be closed
+	defer f.Close()
+
+	var buf bytes.Buffer
+	b, err := r.GetPlainText()
 	if err != nil {
 		return nil, err
 	}
 
-	var textBuilder strings.Builder
-	numPages := reader.NumPage()
-
-	for i := 1; i <= numPages; i++ {
-		page := reader.Page(i)
-		if page.V.IsNull() {
-			continue
-		}
-		
-		var pageText []string
-		texts := page.Content().Text
-		for _, t := range texts {
-			pageText = append(pageText, t.S)
-		}
-		// Join the text elements with spaces and add a newline for the page break
-		textBuilder.WriteString(strings.Join(pageText, " ") + "\n")
+	_, err = io.Copy(&buf, b)
+	if err != nil {
+		return nil, err
 	}
 
 	doc := types.Document{
-		PageContent: textBuilder.String(),
-		Metadata:    map[string]interface{}{"source": filePath},
+		PageContent: buf.String(),
+		Metadata:    map[string]any{"source": filePath},
 	}
 
 	return []types.Document{doc}, nil
