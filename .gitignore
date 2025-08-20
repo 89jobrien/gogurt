@@ -13,6 +13,7 @@ gogurt
 
 # Environment file
 .env
+chroma.json
 
 # Local documents directory
 docs/

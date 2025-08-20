@@ -3,91 +3,197 @@ package chroma
 import (
 	"context"
 	"fmt"
-	"gogurt/embeddings"
-	ggtypes "gogurt/types"
-	"gogurt/vectorstores"
+	"log"
 
-	chroma "github.com/amikos-tech/chroma-go"
-	"github.com/amikos-tech/chroma-go/types"
+	chromadb "github.com/amikos-tech/chroma-go/pkg/api/v2"
+
+	"gogurt/config"
+	ggtypes "gogurt/types"
 )
 
 type Store struct {
-	client     *chroma.Client
-	embedder   embeddings.Embedder
-	collection *chroma.Collection
+	client chromadb.Client
+	col    chromadb.Collection
 }
 
-// creates a new Chroma vector store using the documented API.
-func New(ctx context.Context, url string, embedder embeddings.Embedder) (vectorstores.VectorStore, error) {
-	client, err := chroma.NewClient(
-		chroma.WithBasePath(url),
-	)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create chroma client: %w", err)
-	}
+func New(cfg *config.Config) (*Store, error) {
+    store := &Store{}
+    client, err := chromadb.NewHTTPClient(
+        chromadb.WithBaseURL(cfg.ChromaURL),
+    )
+    if err != nil {
+        return nil, err
+    }
+    store.client = client
 
-	col, err := client.CreateCollection(ctx, "gogurt-collection", nil, true, nil, types.L2)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get or create collection: %w", err)
-	}
-
-	return &Store{
-		client:     client,
-		embedder:   embedder,
-		collection: col,
-	}, nil
+    col, err := client.GetOrCreateCollection(context.Background(), cfg.ChromaCollection,
+        chromadb.WithCollectionMetadataCreate(
+            chromadb.NewMetadata(
+                chromadb.NewStringAttribute("space", cfg.ChromaSpace),
+                chromadb.NewIntAttribute("ef_construction", int64(cfg.ChromaEFConstruction)),
+                chromadb.NewIntAttribute("ef_search", int64(cfg.ChromaEFSearch)),
+                chromadb.NewIntAttribute("max_neighbors", int64(cfg.ChromaMaxNeighbors)),
+            ),
+        ),
+    )
+    if err != nil {
+        return nil, err
+    }
+    store.col = col
+	return store, nil
 }
+
 
 func (s *Store) AddDocuments(ctx context.Context, docs []ggtypes.Document) error {
-	if len(docs) == 0 {
-		return nil
-	}
+    if s.col == nil {
+        return fmt.Errorf("collection not initialized")
+    }
 
-	texts := make([]string, len(docs))
-	ids := make([]string, len(docs))
-	for i, d := range docs {
-		texts[i] = d.PageContent
-		ids[i] = fmt.Sprintf("doc-%d-%s", i, d.Metadata["source"])
-	}
+    ids := make([]string, len(docs))
+    texts := make([]string, len(docs))
+    metadatas := make([]chromadb.DocumentMetadata, len(docs))
 
-	docEmbeddings, err := s.embedder.EmbedDocuments(ctx, docs)
-	if err != nil {
-		return err
-	}
+    for i, d := range docs {
+        ids[i] = fmt.Sprintf("doc-%d", i) // you could also use ULID if you want uniqueness
+        texts[i] = d.PageContent
 
-	_, err = s.collection.Add(
-		ctx,
-		types.NewEmbeddingsFromFloat32(docEmbeddings),
-		nil,
-		texts,
-		ids,
-	)
-	if err != nil {
-		return fmt.Errorf("failed to add documents to collection: %w", err)
-	}
+        // Convert map[string]any to Chroma DocumentMetadata
+        if d.Metadata != nil {
+            attrs := []*chromadb.MetaAttribute{}
+            for k, v := range d.Metadata {
+                switch val := v.(type) {
+                case string:
+                    attrs = append(attrs, chromadb.NewStringAttribute(k, val))
+				case int:
+					attrs = append(attrs, chromadb.NewIntAttribute(k, int64(val)))
+                case float64:
+                    attrs = append(attrs, chromadb.NewFloatAttribute(k, val))
+                default:
+                    // skip unsupported metadata types or stringify them
+                    attrs = append(attrs, chromadb.NewStringAttribute(k, fmt.Sprintf("%v", val)))
+                }
+            }
+            metadatas[i] = chromadb.NewDocumentMetadata(attrs...)
+        } else {
+            metadatas[i] = chromadb.NewDocumentMetadata()
+        }
+    }
 
-	return nil
+    return s.col.Add(ctx,
+        chromadb.WithIDGenerator(chromadb.NewULIDGenerator()),
+        chromadb.WithTexts(texts...),
+        chromadb.WithMetadatas(metadatas...),
+    )
 }
 
-func (s *Store) SimilaritySearch(ctx context.Context, query string, k int) ([]ggtypes.Document, error) {
-	queryVector, err := s.embedder.EmbedQuery(ctx, query)
-	if err != nil {
-		return nil, err
-	}
 
-	results, err := s.collection.QueryWithOptions(
-		ctx,
-		types.WithQueryEmbeddings(types.NewEmbeddingsFromFloat32([][]float32{queryVector})),
-		types.WithNResults(int32(k)),
+func (s *Store) SimilaritySearch(ctx context.Context, query string, k int) ([]ggtypes.Document, error) {
+    if s.col == nil {
+        return nil, fmt.Errorf("collection not initialized")
+    }
+
+    resp, err := s.col.Query(ctx,
+        chromadb.WithQueryTexts(query),
+        chromadb.WithNResults(k))
+    if err != nil {
+        return nil, err
+    }
+
+    textsGroups := resp.GetDocumentsGroups()
+    metadatasGroups := resp.GetMetadatasGroups()
+
+    // Define the keys you expect, or ideally get this from configuration
+    metadataKeys := []string{"str", "int", "float"} // <-- set your known/extracted keys here
+
+    docs := []ggtypes.Document{}
+    for groupIdx, documents := range textsGroups {
+        var metadatas []chromadb.DocumentMetadata
+        if groupIdx < len(metadatasGroups) {
+            metadatas = metadatasGroups[groupIdx]
+        }
+        for idx, doc := range documents {
+            var metadata map[string]any
+            if metadatas != nil && idx < len(metadatas) {
+                md := make(map[string]any)
+                for _, key := range metadataKeys {
+                    if val, ok := metadatas[idx].GetRaw(key); ok {
+                        md[key] = val
+                    }
+                }
+                metadata = md
+            }
+            docs = append(docs, ggtypes.Document{
+                PageContent: doc.ContentString(),
+                Metadata: metadata,
+            })
+        }
+    }
+
+    return docs, nil
+}
+
+
+
+
+func Start()  {
+	// Create a new Chroma client
+	client, err := chromadb.NewHTTPClient()
+	if err != nil {
+		log.Fatalf("Error creating client: %s \n", err)
+		return
+	}
+	// Close the client to release any resources such as local embedding functions
+	defer func() {
+		err = client.Close()
+		if err != nil {
+			log.Fatalf("Error closing client: %s \n", err)
+		}
+	}()
+
+	// Create a new collection with options. We don't provide an embedding function here, so the default embedding function will be used
+	col, err := client.GetOrCreateCollection(context.Background(), "col1",
+		chromadb.WithCollectionMetadataCreate(
+			chromadb.NewMetadata(
+				chromadb.NewStringAttribute("str", "hello"),
+				chromadb.NewIntAttribute("int", 1),
+				chromadb.NewFloatAttribute("float", 1.1),
+			),
+		),
 	)
 	if err != nil {
-		return nil, fmt.Errorf("failed to query collection: %w", err)
+		log.Fatalf("Error creating collection: %s \n", err)
+		return
 	}
 
-	var documents []ggtypes.Document
-	for _, docStr := range results.Documents[0] {
-		documents = append(documents, ggtypes.Document{PageContent: docStr})
+	err = col.Add(context.Background(),
+		chromadb.WithIDGenerator(chromadb.NewULIDGenerator()),
+		// chromadb.WithIDs("1", "2"),
+		chromadb.WithTexts("hello world", "goodbye world"),
+		chromadb.WithMetadatas(
+			chromadb.NewDocumentMetadata(chromadb.NewIntAttribute("int", 1)),
+			chromadb.NewDocumentMetadata(chromadb.NewStringAttribute("str", "hello")),
+		))
+	if err != nil {
+		log.Fatalf("Error adding collection: %s \n", err)
 	}
 
-	return documents, nil
+	count, err := col.Count(context.Background())
+	if err != nil {
+		log.Fatalf("Error counting collection: %s \n", err)
+		return
+	}
+	fmt.Printf("Count collection: %d\n", count)
+
+	qr, err := col.Query(context.Background(), chromadb.WithQueryTexts("say hello"))
+	if err != nil {
+		log.Fatalf("Error querying collection: %s \n", err)
+		return
+	}
+	fmt.Printf("Query result: %v\n", qr.GetDocumentsGroups()[0][0])
+
+	err = col.Delete(context.Background(), chromadb.WithIDsDelete("1", "2"))
+	if err != nil {
+		log.Fatalf("Error deleting collection: %s \n", err)
+		return
+	}
 }

@@ -1,7 +1,6 @@
 package factories
 
 import (
-	"context"
 	"gogurt/config"
 	"gogurt/embeddings"
 	embollama "gogurt/embeddings/ollama"
@@ -67,7 +66,7 @@ func GetVectorStore(cfg *config.Config, embedder embeddings.Embedder) vectorstor
 	switch cfg.VectorStoreProvider {
 	case "chroma":
 		slog.Info("Using Chroma vector store")
-		store, err = chroma.New(context.Background(), cfg.ChromaURL, embedder)
+		store, err = chroma.New(cfg)
 	default:
 		slog.Info("Using in-memory vector store")
 		store = simple.New(embedder)
