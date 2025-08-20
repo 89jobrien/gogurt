@@ -15,11 +15,15 @@ import (
 	"gogurt/llm/azure"
 	llmollama "gogurt/llm/ollama"
 	"gogurt/llm/openai"
+	"gogurt/splitters"
 	"gogurt/splitters/character"
+	"gogurt/splitters/markdown"
+	"gogurt/splitters/recursive"
 	"gogurt/types"
 	"gogurt/vectorstores/simple"
 )
 
+// LLM factory
 func getLLM(cfg *config.Config) types.LLM {
 	var llm types.LLM
 	var err error
@@ -43,6 +47,21 @@ func getLLM(cfg *config.Config) types.LLM {
 	return llm
 }
 
+// text splitter factory
+func getSplitter(cfg *config.Config) splitters.Splitter {
+	switch cfg.SplitterProvider {
+	case "character":
+		slog.Info("Using character text splitter")
+		return character.New(100, 20)
+	case "markdown":
+		slog.Info("Using markdown text splitter")
+		return markdown.New(512, 50)
+	default:
+		slog.Info("Using recursive text splitter")
+		return recursive.New(512, 50)
+	}
+}
+
 func main() {
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 	slog.SetDefault(logger)
@@ -61,6 +80,7 @@ func main() {
 	cfg := config.Load()
 	llmClient := getLLM(cfg)
 
+	// --- RAG pipeline setup ---
 	slog.Info("Setting up RAG pipeline...")
 	docs, err := documentloaders.LoadDocuments(documentPath)
 	if err != nil {
@@ -68,10 +88,10 @@ func main() {
 		os.Exit(1)
 	}
 	if len(docs) == 0 {
-		slog.Warn("No documents were loaded, the agent may not be able to answer questions about your files.")
+		slog.Warn("No documents were loaded.")
 	}
 
-	splitter := character.New(100, 20)
+	splitter := getSplitter(cfg)
 	chunks := splitter.SplitDocuments(docs)
 
 	embedder, err := ollama.New(cfg)
@@ -90,7 +110,7 @@ func main() {
 	}
 	slog.Info("RAG pipeline setup complete.", "documents_loaded", len(docs), "chunks_created", len(chunks))
 
-	aiAgent := agent.New(llmClient)
+	aiAgent := agent.New(llmClient, cfg.AgentMaxIterations)
 
 	slog.Info("Chat session started. Type 'exit' to end.")
 	reader := bufio.NewReader(os.Stdin)
