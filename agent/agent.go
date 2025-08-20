@@ -26,7 +26,7 @@ func New(llm types.LLM, tools ...*tools.Tool) *Agent {
 func (a *Agent) Run(ctx context.Context, prompt string) (string, error) {
 	a.memory = append(a.memory, types.ChatMessage{Role: types.RoleUser, Content: prompt})
 
-	// Add a limit to prevent infinite loops
+	// add a limit to prevent infinite loops
 	for range 10 {
 		response, err := a.llm.Generate(ctx, a.memory)
 		if err != nil {
