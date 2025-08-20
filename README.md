@@ -115,15 +115,17 @@ You: exit
 **Using `docs/` directory:**
 
 ```plaintext
-{"time":"2025-08-19T20:40:43.291317-04:00","level":"INFO","msg":"No document path provided, loading from default 'docs/' directory"}
-{"time":"2025-08-19T20:40:43.291952-04:00","level":"INFO","msg":"Using Ollama LLM"}
-{"time":"2025-08-19T20:40:43.291987-04:00","level":"INFO","msg":"Setting up RAG pipeline..."}
-{"time":"2025-08-19T20:40:45.940107-04:00","level":"INFO","msg":"RAG pipeline setup complete.","documents_loaded":1,"chunks_created":142}
-{"time":"2025-08-19T20:40:45.940156-04:00","level":"INFO","msg":"Chat session started. Type 'exit' to end."}
-You: who is Joseph O'Brien?
-AI: Based on the provided context, Joseph O'Brien is a developer (presumably a software developer with a presence on Toptal.)
+{"time":"2025-08-19T20:54:50.265024-04:00","level":"INFO","msg":"No document path provided, loading from default 'docs/' directory"}
+{"time":"2025-08-19T20:54:50.265459-04:00","level":"INFO","msg":"Using Ollama LLM"}
+{"time":"2025-08-19T20:54:50.26549-04:00","level":"INFO","msg":"Setting up RAG pipeline..."}
+{"time":"2025-08-19T20:54:54.031033-04:00","level":"INFO","msg":"RAG pipeline setup complete.","documents_loaded":2,"chunks_created":204}
+{"time":"2025-08-19T20:54:54.031072-04:00","level":"INFO","msg":"Chat session started. Type 'exit' to end."}
+You: what is Gogurt?
+AI: Based on the context, Gogurt appears to be an open-source, modular framework for creating AI agents.
+You: who is Joseph OBrien?
+AI: Based on the context, Joseph O'Brien is a developer and appears to be a professional with expertise in his field, as mentioned on Toptal's website.
 You: exit
-{"time":"2025-08-19T20:41:31.415392-04:00","level":"INFO","msg":"Ending chat session."}
+{"time":"2025-08-19T20:55:42.212768-04:00","level":"INFO","msg":"Ending chat session."}
 ```
 
 ## Project Structure
