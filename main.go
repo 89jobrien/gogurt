@@ -11,6 +11,7 @@ import (
 	"gogurt/agent"
 	"gogurt/config"
 	"gogurt/documentloaders"
+	"gogurt/embeddings"
 	"gogurt/embeddings/ollama"
 	"gogurt/llm/azure"
 	llmollama "gogurt/llm/ollama"
@@ -20,6 +21,8 @@ import (
 	"gogurt/splitters/markdown"
 	"gogurt/splitters/recursive"
 	"gogurt/types"
+	"gogurt/vectorstores"
+	"gogurt/vectorstores/chroma"
 	"gogurt/vectorstores/simple"
 )
 
@@ -62,6 +65,27 @@ func getSplitter(cfg *config.Config) splitters.Splitter {
 	}
 }
 
+// vector store factory
+func getVectorStore(cfg *config.Config, embedder embeddings.Embedder) vectorstores.VectorStore {
+	var store vectorstores.VectorStore
+	var err error
+
+	switch cfg.VectorStoreProvider {
+	case "chroma":
+		slog.Info("Using Chroma vector store")
+		store, err = chroma.New(context.Background(), cfg.ChromaURL, embedder)
+	default:
+		slog.Info("Using simple in-memory vector store")
+		store = simple.New(embedder)
+	}
+
+	if err != nil {
+		slog.Error("failed to create vector store", "error", err)
+		os.Exit(1)
+	}
+	return store
+}
+
 func main() {
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 	slog.SetDefault(logger)
@@ -100,7 +124,8 @@ func main() {
 		os.Exit(1)
 	}
 
-	vectorStore := simple.New(embedder)
+	vectorStore := getVectorStore(cfg, embedder)
+
 	if len(chunks) > 0 {
 		err = vectorStore.AddDocuments(context.Background(), chunks)
 		if err != nil {

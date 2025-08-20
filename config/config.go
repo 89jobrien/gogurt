@@ -19,6 +19,8 @@ type Config struct {
 	OpenAIAPIKey        string
 	AgentMaxIterations int
 	SplitterProvider   string
+	VectorStoreProvider string
+	ChromaURL           string
 }
 
 func Load() *Config {
@@ -38,6 +40,8 @@ func Load() *Config {
 		OpenAIAPIKey:        getEnv("OPENAI_API_KEY", ""),
 		AgentMaxIterations: maxIter,
 		SplitterProvider:   getEnv("SPLITTER_PROVIDER", "recursive"),
+		VectorStoreProvider: getEnv("VECTOR_STORE_PROVIDER", "faiss"),
+		ChromaURL:           getEnv("CHROMA_URL", "http://localhost:8000"),
 	}
 }
 
