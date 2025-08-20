@@ -26,7 +26,7 @@ func TestAgent_Run(t *testing.T) {
 	}
 
 	agent := New(llm, 5)
-	result, err := agent.Run(context.Background(), "What is the weather in New York?")
+	result, err := agent.Invoke(context.Background(), "What is the weather in New York?")
 	if err != nil {
 		t.Fatalf("Agent.Run() error = %v", err)
 	}
