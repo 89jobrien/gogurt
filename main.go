@@ -12,9 +12,9 @@ import (
 	"gogurt/config"
 	"gogurt/documentloaders"
 	"gogurt/embeddings"
-	ollamaemb "gogurt/embeddings/ollama"
+	embollama "gogurt/embeddings/ollama"
 	"gogurt/llm/azure"
-	ollamallm "gogurt/llm/ollama"
+	llmollama "gogurt/llm/ollama"
 	"gogurt/llm/openai"
 	"gogurt/splitters"
 	"gogurt/splitters/character"
@@ -26,20 +26,20 @@ import (
 	"gogurt/vectorstores/simple"
 )
 
-// LLM factory
+// llm factory
 func getLLM(cfg *config.Config) types.LLM {
 	var llm types.LLM
 	var err error
 
 	switch cfg.LLMProvider {
 	case "azure":
-		slog.Info("Using Azure LLM")
+		slog.Info("Using AzureOpenAI for LLM")
 		llm, err = azure.New(cfg)
 	case "ollama":
-		slog.Info("Using Ollama LLM")
-		llm, err = ollamallm.New(cfg)
+		slog.Info("Using Ollama for LLM")
+		llm, err = llmollama.New(cfg)
 	default:
-		slog.Info("Using OpenAI LLM")
+		slog.Info("Using OpenAI	for LLM")
 		llm, err = openai.New(cfg)
 	}
 
@@ -118,7 +118,7 @@ func main() {
 	splitter := getSplitter(cfg)
 	chunks := splitter.SplitDocuments(docs)
 
-	embedder, err := ollamaemb.New(cfg)
+	embedder, err := embollama.New(cfg)
 	if err != nil {
 		slog.Error("failed to create embedder", "error", err)
 		os.Exit(1)
