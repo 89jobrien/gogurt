@@ -15,7 +15,7 @@ import (
 
 type RAGPipe struct {
 	vectorStore  vectorstores.VectorStore
-	agent        *agent.Agent
+	agent        agent.Agent
 	prompt       *prompts.PromptTemplate
 	hasDocuments bool
 }
@@ -87,7 +87,7 @@ func (p *RAGPipe) Run(ctx context.Context, prompt string) (string, error) {
 		}
 	}
 
-	response, err := p.agent.Run(ctx, augmentedPrompt)
+	response, err := p.agent.Invoke(ctx, augmentedPrompt)
 	if err != nil {
 		return "", fmt.Errorf("agent run failed: %w", err)
 	}
