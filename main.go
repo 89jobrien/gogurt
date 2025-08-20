@@ -53,7 +53,7 @@ func main() {
 
 	// --- RAG Pipeline Setup ---
 	slog.Info("Setting up RAG pipeline...")
-	docs, err := text.NewTextLoader("docs.txt") // Replace with the path to your document
+	docs, err := text.NewTextLoader("docs.txt") // replace with the path to your document
 	if err != nil {
 		slog.Error("failed to load documents", "error", err)
 		os.Exit(1)
@@ -98,7 +98,7 @@ func main() {
 			break
 		}
 
-		// --- Augment the Prompt using the Retriever ---
+		// --- Augment the Generation Prompt using the Retriever (see what I did there?) ---
 		relevantDocs, err := vectorStore.SimilaritySearch(context.Background(), prompt, 2)
 		if err != nil {
 			slog.Error("failed to retrieve documents", "error", err)
