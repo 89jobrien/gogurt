@@ -2,12 +2,14 @@ package documentloaders
 
 import (
 	"fmt"
-	"gogurt/documentloaders/pdf"
-	"gogurt/documentloaders/text"
-	"gogurt/types"
 	"log/slog"
 	"os"
 	"path/filepath"
+
+	"gogurt/documentloaders/markdown"
+	"gogurt/documentloaders/pdf"
+	"gogurt/documentloaders/text"
+	"gogurt/types"
 )
 
 // detects if the path is a file or a directory and loads accordingly.
@@ -22,6 +24,21 @@ func LoadDocuments(path string) ([]types.Document, error) {
 	}
 
 	return loadFromFile(path)
+}
+
+// loads a single file using the appropriate loader.
+func loadFromFile(filePath string) ([]types.Document, error) {
+	ext := filepath.Ext(filePath)
+	switch ext {
+	case ".txt":
+		return text.NewTextLoader(filePath)
+	case ".pdf":
+		return pdf.NewPDFLoader(filePath)
+	case ".md":
+		return markdown.NewMarkdownLoader(filePath)
+	default:
+		return nil, fmt.Errorf("unsupported file type: %s", ext)
+	}
 }
 
 // reads all supported files from a directory.
@@ -45,17 +62,4 @@ func loadFromDirectory(dirPath string) ([]types.Document, error) {
 		}
 	}
 	return allDocs, nil
-}
-
-// loads a single file using the appropriate loader.
-func loadFromFile(filePath string) ([]types.Document, error) {
-	ext := filepath.Ext(filePath)
-	switch ext {
-	case ".txt":
-		return text.NewTextLoader(filePath)
-	case ".pdf":
-		return pdf.NewPDFLoader(filePath)
-	default:
-		return nil, fmt.Errorf("unsupported file type: %s", ext)
-	}
 }
