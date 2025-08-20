@@ -1,4 +1,3 @@
-// In vectorstores/chroma/chroma.go
 package chroma
 
 import (
@@ -12,16 +11,14 @@ import (
 	"github.com/amikos-tech/chroma-go/types"
 )
 
-// Store implements the vectorstores.VectorStore interface for ChromaDB.
 type Store struct {
 	client     *chromago.Client
 	embedder   embeddings.Embedder
-	collection *chromago.Collection // Corrected type from the root chromago package
+	collection *chromago.Collection
 }
 
-// New creates a new Chroma vector store using the documented API.
+// creates a new Chroma vector store using the documented API.
 func New(ctx context.Context, url string, embedder embeddings.Embedder) (vectorstores.VectorStore, error) {
-	// 1. Use WithBasePath as the documented option for setting the URL
 	client, err := chromago.NewClient(
 		chromago.WithBasePath(url),
 	)
@@ -29,8 +26,6 @@ func New(ctx context.Context, url string, embedder embeddings.Embedder) (vectors
 		return nil, fmt.Errorf("failed to create chroma client: %w", err)
 	}
 
-	// 2. Use the documented CreateCollection method with the createOrGet flag
-	// Setting embedding function to nil and distance function to L2 (default)
 	col, err := client.CreateCollection(ctx, "gogurt-collection", nil, true, nil, types.L2)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get or create collection: %w", err)
@@ -60,11 +55,10 @@ func (s *Store) AddDocuments(ctx context.Context, docs []gogurttypes.Document) e
 		return err
 	}
 
-	// 3. Use the collection.Add method which takes slices directly
 	_, err = s.collection.Add(
 		ctx,
 		types.NewEmbeddingsFromFloat32(docEmbeddings),
-		nil, // No metadata
+		nil,
 		texts,
 		ids,
 	)
@@ -81,7 +75,6 @@ func (s *Store) SimilaritySearch(ctx context.Context, query string, k int) ([]go
 		return nil, err
 	}
 
-	// The Query method takes query texts, so we use QueryWithOptions with our embeddings
 	results, err := s.collection.QueryWithOptions(
 		ctx,
 		types.WithQueryEmbeddings(types.NewEmbeddingsFromFloat32([][]float32{queryVector})),
