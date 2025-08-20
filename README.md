@@ -58,7 +58,7 @@ Gogurt is a modular framework that allows you to create AI agents.
 
 The application can load documents in two ways:
 
-**1. Load all files from the `docs/` directory (Default)**
+**Option 1. Load all files from the `docs/` directory (Default)**
 If you have a `docs/` directory in your project root, you can run the application without any arguments to load all supported files (`.txt`, `.pdf`) from it.
 
 ```bash
@@ -66,7 +66,7 @@ If you have a `docs/` directory in your project root, you can run the applicatio
 go run main.go
 ```
 
-**2. Load a specific file or directory**
+**Option 2. Load a specific file or directory**
 You can also provide a path to a specific file or directory as a command-line argument.
 
 ```bash

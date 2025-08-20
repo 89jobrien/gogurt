@@ -2,51 +2,38 @@ package pdf
 
 import (
 	"gogurt/types"
-	"os"
+	"strings"
 
-	"github.com/unidoc/unipdf/v3/extractor"
-	"github.com/unidoc/unipdf/v3/model"
+	"rsc.io/pdf"
 )
 
-// reads a PDF file from a given path and extracts its text
+// NewPDFLoader reads a PDF file from a given path and extracts its text.
 func NewPDFLoader(filePath string) ([]types.Document, error) {
-	f, err := os.Open(filePath)
-	if err != nil {
-		return nil, err
-	}
-	defer f.Close()
-
-	pdfReader, err := model.NewPdfReader(f)
+	reader, err := pdf.Open(filePath)
 	if err != nil {
 		return nil, err
 	}
 
-	numPages, err := pdfReader.GetNumPages()
-	if err != nil {
-		return nil, err
-	}
+	var textBuilder strings.Builder
+	numPages := reader.NumPage()
 
-	var allText string
 	for i := 1; i <= numPages; i++ {
-		page, err := pdfReader.GetPage(i)
-		if err != nil {
-			return nil, err
+		page := reader.Page(i)
+		if page.V.IsNull() {
+			continue
 		}
-
-		ex, err := extractor.New(page)
-		if err != nil {
-			return nil, err
+		
+		var pageText []string
+		texts := page.Content().Text
+		for _, t := range texts {
+			pageText = append(pageText, t.S)
 		}
-
-		text, err := ex.ExtractText()
-		if err != nil {
-			return nil, err
-		}
-		allText += text + "\n"
+		// Join the text elements with spaces and add a newline for the page break
+		textBuilder.WriteString(strings.Join(pageText, " ") + "\n")
 	}
 
 	doc := types.Document{
-		PageContent: allText,
+		PageContent: textBuilder.String(),
 		Metadata:    map[string]interface{}{"source": filePath},
 	}
 
