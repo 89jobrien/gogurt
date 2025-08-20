@@ -25,5 +25,5 @@ type LLM interface {
 // represents a chunk of text from a source.
 type Document struct {
 	PageContent string
-	Metadata    map[string]interface{}
+	Metadata    map[string]any
 }

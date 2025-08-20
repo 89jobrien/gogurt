@@ -4,23 +4,23 @@ import (
 	"context"
 	"fmt"
 	"gogurt/embeddings"
-	gogurttypes "gogurt/types"
+	ggtypes "gogurt/types"
 	"gogurt/vectorstores"
 
-	chromago "github.com/amikos-tech/chroma-go"
+	chroma "github.com/amikos-tech/chroma-go"
 	"github.com/amikos-tech/chroma-go/types"
 )
 
 type Store struct {
-	client     *chromago.Client
+	client     *chroma.Client
 	embedder   embeddings.Embedder
-	collection *chromago.Collection
+	collection *chroma.Collection
 }
 
 // creates a new Chroma vector store using the documented API.
 func New(ctx context.Context, url string, embedder embeddings.Embedder) (vectorstores.VectorStore, error) {
-	client, err := chromago.NewClient(
-		chromago.WithBasePath(url),
+	client, err := chroma.NewClient(
+		chroma.WithBasePath(url),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create chroma client: %w", err)
@@ -38,7 +38,7 @@ func New(ctx context.Context, url string, embedder embeddings.Embedder) (vectors
 	}, nil
 }
 
-func (s *Store) AddDocuments(ctx context.Context, docs []gogurttypes.Document) error {
+func (s *Store) AddDocuments(ctx context.Context, docs []ggtypes.Document) error {
 	if len(docs) == 0 {
 		return nil
 	}
@@ -69,7 +69,7 @@ func (s *Store) AddDocuments(ctx context.Context, docs []gogurttypes.Document) e
 	return nil
 }
 
-func (s *Store) SimilaritySearch(ctx context.Context, query string, k int) ([]gogurttypes.Document, error) {
+func (s *Store) SimilaritySearch(ctx context.Context, query string, k int) ([]ggtypes.Document, error) {
 	queryVector, err := s.embedder.EmbedQuery(ctx, query)
 	if err != nil {
 		return nil, err
@@ -84,9 +84,9 @@ func (s *Store) SimilaritySearch(ctx context.Context, query string, k int) ([]go
 		return nil, fmt.Errorf("failed to query collection: %w", err)
 	}
 
-	var documents []gogurttypes.Document
+	var documents []ggtypes.Document
 	for _, docStr := range results.Documents[0] {
-		documents = append(documents, gogurttypes.Document{PageContent: docStr})
+		documents = append(documents, ggtypes.Document{PageContent: docStr})
 	}
 
 	return documents, nil
