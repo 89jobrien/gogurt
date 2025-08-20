@@ -4,28 +4,15 @@ import (
 	"context"
 	"gogurt/embeddings"
 	"gogurt/types"
+	"gogurt/vectorstores"
 	"math"
 	"sort"
 )
 
-type VectorStore struct {
+type Store struct {
 	embedder  embeddings.Embedder
 	documents []types.Document
 	vectors   [][]float32
-}
-
-func New(embedder embeddings.Embedder) *VectorStore {
-	return &VectorStore{embedder: embedder}
-}
-
-func (s *VectorStore) AddDocuments(ctx context.Context, docs []types.Document) error {
-	s.documents = append(s.documents, docs...)
-	embeddings, err := s.embedder.EmbedDocuments(ctx, docs)
-	if err != nil {
-		return err
-	}
-	s.vectors = append(s.vectors, embeddings...)
-	return nil
 }
 
 type searchResult struct {
@@ -33,7 +20,27 @@ type searchResult struct {
 	similarity float64
 }
 
-func (s *VectorStore) SimilaritySearch(ctx context.Context, query string, k int) ([]types.Document, error) {
+// creates a simple in-memory vector store.
+func New(embedder embeddings.Embedder) vectorstores.VectorStore {
+	return &Store{embedder: embedder}
+}
+
+func (s *Store) AddDocuments(ctx context.Context, docs []types.Document) error {
+	if len(docs) == 0 {
+		return nil
+	}
+	s.documents = append(s.documents, docs...)
+	docEmbeddings, err := s.embedder.EmbedDocuments(ctx, docs)
+	if err != nil {
+		return err
+	}
+	s.vectors = append(s.vectors, docEmbeddings...)
+	return nil
+}
+
+
+
+func (s *Store) SimilaritySearch(ctx context.Context, query string, k int) ([]types.Document, error) {
 	queryVector, err := s.embedder.EmbedQuery(ctx, query)
 	if err != nil {
 		return nil, err
@@ -68,6 +75,9 @@ func cosineSimilarity(a, b []float32) float64 {
 		dotProduct += float64(a[i] * b[i])
 		normA += float64(a[i] * a[i])
 		normB += float64(b[i] * b[i])
+	}
+	if normA == 0 || normB == 0 {
+		return 0.0
 	}
 	return dotProduct / (math.Sqrt(normA) * math.Sqrt(normB))
 }
