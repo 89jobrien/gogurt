@@ -56,13 +56,26 @@ Gogurt is a modular framework that allows you to create AI agents.
 
 ## Usage
 
-Run the application from your terminal. It will start an interactive chat session.
+The application can load documents in two ways:
+
+**1. Load all files from the `docs/` directory (Default)**
+If you have a `docs/` directory in your project root, you can run the application without any arguments to load all supported files (`.txt`, `.pdf`) from it.
 
 ```bash
+# Make sure you have a docs/ directory with files in it
 go run main.go
 ```
 
-The application will first set up the RAG pipeline by loading and processing `docs.txt`. Once ready, you can start asking questions.
+**2. Load a specific file or directory**
+You can also provide a path to a specific file or directory as a command-line argument.
+
+```bash
+# Load a single PDF
+go run main.go path/to/your/document.pdf
+
+# Load all files from a different directory
+go run main.go path/to/another/directory/
+```
 
 ### Example Session
 
