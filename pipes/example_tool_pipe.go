@@ -14,20 +14,17 @@ type ToolPipe struct {
 }
 
 func (tp *ToolPipe) Run(ctx context.Context, prompt string) (string, error) {
-	// 1. Invoke agent on prompt. Suppose agent returns tool name and json args.
 	result, err := tp.Agent.Invoke(ctx, prompt)
 	if err != nil {
 		return "", fmt.Errorf("agent error: %w", err)
 	}
 
-	// For this example, let's suppose AgentCallResult.Output is like: "add|{\"a\":1,\"b\":2}"
 	var toolName, jsonArgs string
 	n, err := fmt.Sscanf(result.Output, "%s|%s", &toolName, &jsonArgs)
 	if err != nil || n != 2 {
 		return "", fmt.Errorf("agent output format invalid: %v", result.Output)
 	}
 
-	// 2. Call tool via registry
 	fmt.Printf("Using tool: %v\v", toolName)
 	toolResult, err := tp.Registry.Call(toolName, jsonArgs)
 	if err != nil {
@@ -37,3 +34,22 @@ func (tp *ToolPipe) Run(ctx context.Context, prompt string) (string, error) {
 
 	return fmt.Sprintf("%v", toolResult), nil
 }
+
+// // in main code
+// // Setup registry
+// reg := tools.NewRegistry()
+// reg.Register(addTool)
+// reg.Register(subtractTool)
+
+// // Setup agent (needs to emit e.g. "add|{\"a\":1,\"b\":2}")
+// myAgent := &YourAgentImplementation{...}
+
+// // Create pipe
+// pipe := pipes.ToolPipe{
+//     Agent: myAgent,
+//     Registry: reg,
+// }
+
+// // Run with a prompt
+// out, err := pipe.Run(context.Background(), "Add 1 and 2")
+// fmt.Println("Final output:", out)
