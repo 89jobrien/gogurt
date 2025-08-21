@@ -11,6 +11,8 @@ type Tool struct {
     Description string
     Func        reflect.Value
     InputSchema map[string]any
+    Example     string
+    Metadata    map[string]any
 }
 
 // New creates a new Tool from a Go function with a required name argument
@@ -32,7 +34,7 @@ func New(name string, f any, description string) (*Tool, error) {
         Name:        name,
         Description: description,
         Func:        val,
-        InputSchema: inputSchema,
+        InputSchema: inputSchema, 
     }, nil
 }
 
@@ -79,4 +81,27 @@ func generateSchema(t reflect.Type) (map[string]any, error) {
     }
     schema["required"] = required
     return schema, nil
+}
+
+// Describe returns a detailed summary of the tool, including its input schema and signature.
+func (t *Tool) Describe() string {
+    inputSchemaBytes, _ := json.MarshalIndent(t.InputSchema, "", "  ")
+    meta := ""
+    if t.Metadata != nil {
+        metaBytes, _ := json.MarshalIndent(t.Metadata, "", "  ")
+        meta = "\nMetadata:\n" + string(metaBytes)
+    }
+    example := ""
+    if t.Example != "" {
+        example = "\nExample Input:\n" + t.Example
+    }
+    return fmt.Sprintf(
+        "Tool: %s\nDescription: %s\nFunction Signature: %s\nInput Schema:\n%s%s%s\n",
+        t.Name,
+        t.Description,
+        t.Func.Type().String(),
+        string(inputSchemaBytes),
+        example,
+        meta,
+    )
 }
