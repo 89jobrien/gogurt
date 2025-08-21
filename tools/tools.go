@@ -86,17 +86,20 @@ func generateSchema(t reflect.Type) (map[string]any, error) {
 // Describe returns a detailed summary of the tool, including its input schema and signature.
 func (t *Tool) Describe() string {
     inputSchemaBytes, _ := json.MarshalIndent(t.InputSchema, "", "  ")
+
     meta := ""
     if t.Metadata != nil {
         metaBytes, _ := json.MarshalIndent(t.Metadata, "", "  ")
-        meta = "\nMetadata:\n" + string(metaBytes)
+        meta = fmt.Sprintf("Metadata:\n%s\n", string(metaBytes))
     }
+
     example := ""
     if t.Example != "" {
-        example = "\nExample Input:\n" + t.Example
+        example = fmt.Sprintf("Example Input:\n%s\n", t.Example)
     }
+
     return fmt.Sprintf(
-        "Tool: %s\nDescription: %s\nFunction Signature: %s\nInput Schema:\n%s%s%s\n",
+        "==========\nTool: %s\nDescription: %s\nFunction Signature: %s\n\nInput Schema:\n%s\n\n%s%s==========\n",
         t.Name,
         t.Description,
         t.Func.Type().String(),
@@ -105,3 +108,28 @@ func (t *Tool) Describe() string {
         meta,
     )
 }
+
+
+// Usage
+/*
+tool := &Tool{
+    Name:        "add",
+    Description: "Adds two numbers.",
+    Func:        reflect.ValueOf(Add),
+    InputSchema: map[string]any{
+        "type": "object",
+        "properties": map[string]any{
+            "a": map[string]any{"type": "number"},
+            "b": map[string]any{"type": "number"},
+        },
+        "required": []string{"a", "b"},
+    },
+    Example:  `{"a": 1, "b": 2}`,
+    Metadata: map[string]any{
+        "category": "math",
+        "version": "1.0",
+    },
+}
+
+fmt.Println(tool.Describe())
+*/
