@@ -1,66 +1,57 @@
 package cli
 
 import (
-	"bufio"
-	"context"
 	"flag"
 	"gogurt/cli/interactive"
 	"gogurt/config"
-	"gogurt/pipes"
-	"log/slog"
+	"gogurt/console"
+	"gogurt/vectorstores/chroma"
 	"os"
-	"strings"
 )
 
+var c = console.ConsoleInstance()
+
 func Execute() {
-	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
-	slog.SetDefault(logger)
+    var (
+        interactiveMode = flag.Bool("i", false, "Run in interactive mode")
+        ingestMode     = flag.Bool("ingest", false, "Run document ingestion only")
+        ragMode        = flag.Bool("rag", false, "Run RAG queries only (requires pre-ingested documents)")
+        documentPath   = flag.String("docs", "docs/", "Path to documents directory")
+        configPath     = flag.String("config", ".env", "Path to configuration file")
+    )
+    flag.Parse()
 
-	var interactiveFlag = flag.Bool("i", false, "Enable interactive mode to select providers.")
-	flag.Parse()
-
-	var documentPath string
-	if len(flag.Args()) >= 1 {
-		documentPath = flag.Args()[0]
-		slog.Info("Loading document from command-line argument", "path", documentPath)
-	} else {
-		documentPath = "docs/"
-		slog.Info("No document path provided, loading from default 'docs/' directory")
+	if *configPath == "" {
+		c.Write("Please provide a configuration file path using the -config flag.")
 	}
 
-	cfg := config.Load()
+    // Load configuration
+    cfg := config.Load()
+    if cfg == nil {
+		c.Write("Failed to load configuration")
+        os.Exit(1)
+    }
 
-	if *interactiveFlag {
-		slog.Info("Starting in interactive mode.")
-		interactive.Run(cfg, documentPath)
-	} else {
-		slog.Info("Starting in default mode.")
+    var chromaStore *chroma.Store
 
-		rag, err := pipes.NewRAG(context.Background(), cfg, documentPath)
-		if err != nil {
-			slog.Error("failed to create RAG pipeline", "error", err)
-			os.Exit(1)
-		}
-		slog.Info("Chat session started. Type 'exit' to end.")
-		reader := bufio.NewReader(os.Stdin)
-		for {
-			os.Stdout.WriteString("You: ")
-			prompt, err := reader.ReadString('\n')
-			if err != nil {
-				slog.Error("failed to read input", "error", err)
-				break
-			}
-			prompt = strings.TrimSpace(prompt)
-			if strings.ToLower(prompt) == "exit" {
-				slog.Info("Ending chat session.")
-				break
-			}
-			response, err := rag.Run(context.Background(), prompt)
-			if err != nil {
-				slog.Error("pipeline run failed", "error", err)
-				continue
-			}
-			os.Stdout.WriteString("AI: " + response + "\n")
-		}
-	}
+    switch {
+    case *ingestMode:
+        c.Write("Starting in ingestion mode")
+        interactive.Run(cfg, *documentPath, chromaStore, "ingest")
+    case *ragMode:
+        c.Write("Starting in RAG query mode")
+        interactive.Run(cfg, *documentPath, chromaStore, "rag")
+    case *interactiveMode:
+        c.Write("Starting in interactive mode")
+        interactive.Run(cfg, *documentPath, chromaStore, "interactive")
+    default:
+        c.Write("Usage:")
+        c.Write("  -i              Interactive mode (choose actions from menu)")
+        c.Write("  -ingest         Ingest documents only")
+        c.Write("  -rag            Run RAG queries only")
+        c.Write("  -docs <path>    Document directory path (default: docs/)")
+        c.Write("  -config <path>  Configuration file path")
+        flag.Usage()
+        os.Exit(1)
+    }
 }
