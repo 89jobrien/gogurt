@@ -34,3 +34,39 @@ func (r *Registry) Call(name string, jsonArgs string) (any, error) {
     }
     return tool.Call(jsonArgs)
 }
+
+// List returns a slice of all registered tool names.
+func (r *Registry) List() []string {
+	names := make([]string, 0, len(r.tools))
+	for name := range r.tools {
+		names = append(names, name)
+	}
+	return names
+}
+
+// RegisterBatch registers all provided tools, returning a slice of errors for duplicates.
+func (r *Registry) RegisterBatch(tools []*Tool) []error {
+	var errs []error
+	for _, tool := range tools {
+		if err := r.Register(tool); err != nil {
+			errs = append(errs, err)
+		}
+	}
+	return errs
+}
+
+// ListTools returns a slice of all registered tool pointers.
+func (r *Registry) ListTools() []*Tool {
+	tools := make([]*Tool, 0, len(r.tools))
+	for _, tool := range r.tools {
+		tools = append(tools, tool)
+	}
+	return tools
+}
+
+// PrintAllDescs pretty prints metadata for all tools in the registry.
+func (r *Registry) PrintAllDescs() {
+	for _, tool := range r.ListTools() {
+		fmt.Println(tool.Describe())
+	}
+}
