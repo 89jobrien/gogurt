@@ -51,7 +51,6 @@ func (t *Tool) Call(jsonArgs string) (any, error) {
 }
 
 // generateSchema creates a JSON schema from a Go type
-// TODO: make this more generic
 func generateSchema(t reflect.Type) (map[string]any, error) {
     schema := map[string]any{
         "type":       "object",

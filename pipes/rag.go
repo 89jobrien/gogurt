@@ -5,92 +5,96 @@ import (
 	"fmt"
 	"gogurt/agent"
 	"gogurt/config"
-	"gogurt/documentloaders"
 	"gogurt/factories"
 	"gogurt/prompts"
 	"gogurt/vectorstores"
-	"log/slog"
 	"strings"
 )
 
+// RAG handles retrieval-augmented generation queries
 type RAGPipe struct {
-	vectorStore  vectorstores.VectorStore
-	agent        agent.Agent
-	prompt       *prompts.PromptTemplate
-	hasDocuments bool
+	Agent       agent.Agent
+	prompt      *prompts.PromptTemplate
+	vectorStore vectorstores.VectorStore
 }
 
-func NewRAG(ctx context.Context, cfg *config.Config, documentPath string) (*RAGPipe, error) {
-	slog.Info("Setting up RAG pipeline...")
+// NewRAGPipe creates a new RAG query pipeline (assumes documents are already ingested)
+func NewRAGPipe(ctx context.Context, cfg *config.Config) (*RAGPipe, error) {
+	c.Write("Setting up RAG query pipeline...")
 
+	// Initialize components
 	llmClient := factories.GetLLM(cfg)
 	aiAgent := agent.New(llmClient, cfg.AgentMaxIterations)
+	
+	embedder := factories.GetEmbedder(cfg)
+	vectorStore := factories.GetVectorStore(cfg, embedder)
 
+	// Create prompt template
 	ragPrompt, err := prompts.NewPromptTemplate(prompts.RagPrompt)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create prompt template: %w", err)
 	}
 
-	docs, err := documentloaders.LoadDocuments(documentPath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to load documents from %s: %w", documentPath, err)
-	}
-	if len(docs) == 0 {
-		slog.Warn("No documents were loaded. The agent will run without retrieval context.")
-		return &RAGPipe{
-			agent:        aiAgent,
-			prompt:       ragPrompt,
-			hasDocuments: false,
-		}, nil
-	}
-
-	splitter := factories.GetSplitter(cfg)
-	chunks := splitter.SplitDocuments(docs)
-	embedder := factories.GetEmbedder(cfg)
-	vectorStore := factories.GetVectorStore(cfg, embedder)
-
-	err = vectorStore.AddDocuments(ctx, chunks)
-	if err != nil {
-		return nil, fmt.Errorf("failed to add documents to vector store: %w", err)
-	}
-
-	slog.Info("RAG pipeline setup complete.", "documents_loaded", len(docs), "chunks_created", len(chunks))
+	c.Write("RAG query pipeline setup complete")
 
 	return &RAGPipe{
-		vectorStore:  vectorStore,
-		agent:        aiAgent,
-		prompt:       ragPrompt,
-		hasDocuments: true,
+		Agent:       aiAgent,
+		prompt:      ragPrompt,
+		vectorStore: vectorStore,
 	}, nil
 }
 
-func (p *RAGPipe) Run(ctx context.Context, prompt string) (string, error) {
-	augmentedPrompt := prompt
-
-	if p.hasDocuments {
-		relevantDocs, err := p.vectorStore.SimilaritySearch(ctx, prompt, 2)
-		if err != nil {
-			return "", fmt.Errorf("failed to retrieve documents: %w", err)
-		}
-
-		var contextBuilder strings.Builder
-		for _, doc := range relevantDocs {
-			contextBuilder.WriteString(doc.PageContent + "\n")
-		}
-
-		augmentedPrompt, err = p.prompt.Format(map[string]string{
-			"context":  contextBuilder.String(),
-			"question": prompt,
-		})
-		if err != nil {
-			return "", fmt.Errorf("failed to format prompt: %w", err)
-		}
+// Run executes a RAG query
+func (r *RAGPipe) Run(ctx context.Context, query string) (string, error) {
+	if query = strings.TrimSpace(query); query == "" {
+		return "", fmt.Errorf("query cannot be empty")
 	}
 
-	response, err := p.agent.Invoke(ctx, augmentedPrompt)
+	// Retrieve relevant documents
+	relevantDocs, err := r.vectorStore.SimilaritySearch(ctx, query, 3) // Increased to 3 for better context
 	if err != nil {
-		return "", fmt.Errorf("agent run failed: %w", err)
+		return "", fmt.Errorf("failed to retrieve documents: %w", err)
 	}
 
-	return response, nil
+	// Build context from retrieved documents
+	var contextBuilder strings.Builder
+	for i, doc := range relevantDocs {
+		if i > 0 {
+			contextBuilder.WriteString("\n---\n") // Add separator between documents
+		}
+		contextBuilder.WriteString(doc.PageContent)
+	}
+
+	// Format the prompt with context and question
+	augmentedPrompt, err := r.prompt.Format(map[string]string{
+		"context":  contextBuilder.String(),
+		"question": query,
+	})
+	if err != nil {
+		return "", fmt.Errorf("failed to format prompt: %w", err)
+	}
+
+	// Generate response using the agent
+	response, err := r.Agent.Invoke(ctx, augmentedPrompt)
+	if err != nil {
+		return "", fmt.Errorf("agent invocation failed: %w", err)
+	}
+
+	return response.Output, nil
+}
+
+// GetVectorStore returns the vector store instance (useful for metrics)
+func (r *RAGPipe) GetVectorStore() vectorstores.VectorStore {
+	return r.vectorStore
+}
+
+// HasDocuments checks if the vector store contains any documents
+func (r *RAGPipe) HasDocuments(ctx context.Context) (bool, error) {
+	// This would depend on your vector store interface
+	// You might need to implement a Count() method or similar
+	docs, err := r.vectorStore.SimilaritySearch(ctx, "test", 1)
+	if err != nil {
+		return false, err
+	}
+	return len(docs) > 0, nil
 }
