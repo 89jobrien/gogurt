@@ -3,7 +3,6 @@ package chroma
 import (
 	"context"
 	"fmt"
-	"log"
 
 	chromadb "github.com/amikos-tech/chroma-go/pkg/api/v2"
 
@@ -12,8 +11,8 @@ import (
 )
 
 type Store struct {
-	client chromadb.Client
-	col    chromadb.Collection
+	Client chromadb.Client
+	Col    chromadb.Collection
 }
 
 func New(cfg *config.Config) (*Store, error) {
@@ -24,7 +23,7 @@ func New(cfg *config.Config) (*Store, error) {
     if err != nil {
         return nil, err
     }
-    store.client = client
+    store.Client = client
 
     col, err := client.GetOrCreateCollection(context.Background(), cfg.ChromaCollection,
         chromadb.WithCollectionMetadataCreate(
@@ -39,13 +38,13 @@ func New(cfg *config.Config) (*Store, error) {
     if err != nil {
         return nil, err
     }
-    store.col = col
+    store.Col = col
 	return store, nil
 }
 
 
 func (s *Store) AddDocuments(ctx context.Context, docs []ggtypes.Document) error {
-    if s.col == nil {
+    if s.Col == nil {
         return fmt.Errorf("collection not initialized")
     }
 
@@ -79,7 +78,7 @@ func (s *Store) AddDocuments(ctx context.Context, docs []ggtypes.Document) error
         }
     }
 
-    return s.col.Add(ctx,
+    return s.Col.Add(ctx,
         chromadb.WithIDGenerator(chromadb.NewULIDGenerator()),
         chromadb.WithTexts(texts...),
         chromadb.WithMetadatas(metadatas...),
@@ -88,11 +87,11 @@ func (s *Store) AddDocuments(ctx context.Context, docs []ggtypes.Document) error
 
 
 func (s *Store) SimilaritySearch(ctx context.Context, query string, k int) ([]ggtypes.Document, error) {
-    if s.col == nil {
+    if s.Col == nil {
         return nil, fmt.Errorf("collection not initialized")
     }
 
-    resp, err := s.col.Query(ctx,
+    resp, err := s.Col.Query(ctx,
         chromadb.WithQueryTexts(query),
         chromadb.WithNResults(k))
     if err != nil {
@@ -130,70 +129,4 @@ func (s *Store) SimilaritySearch(ctx context.Context, query string, k int) ([]gg
     }
 
     return docs, nil
-}
-
-
-
-
-func Start()  {
-	// Create a new Chroma client
-	client, err := chromadb.NewHTTPClient()
-	if err != nil {
-		log.Fatalf("Error creating client: %s \n", err)
-		return
-	}
-	// Close the client to release any resources such as local embedding functions
-	defer func() {
-		err = client.Close()
-		if err != nil {
-			log.Fatalf("Error closing client: %s \n", err)
-		}
-	}()
-
-	// Create a new collection with options. We don't provide an embedding function here, so the default embedding function will be used
-	col, err := client.GetOrCreateCollection(context.Background(), "col1",
-		chromadb.WithCollectionMetadataCreate(
-			chromadb.NewMetadata(
-				chromadb.NewStringAttribute("str", "hello"),
-				chromadb.NewIntAttribute("int", 1),
-				chromadb.NewFloatAttribute("float", 1.1),
-			),
-		),
-	)
-	if err != nil {
-		log.Fatalf("Error creating collection: %s \n", err)
-		return
-	}
-
-	err = col.Add(context.Background(),
-		chromadb.WithIDGenerator(chromadb.NewULIDGenerator()),
-		// chromadb.WithIDs("1", "2"),
-		chromadb.WithTexts("hello world", "goodbye world"),
-		chromadb.WithMetadatas(
-			chromadb.NewDocumentMetadata(chromadb.NewIntAttribute("int", 1)),
-			chromadb.NewDocumentMetadata(chromadb.NewStringAttribute("str", "hello")),
-		))
-	if err != nil {
-		log.Fatalf("Error adding collection: %s \n", err)
-	}
-
-	count, err := col.Count(context.Background())
-	if err != nil {
-		log.Fatalf("Error counting collection: %s \n", err)
-		return
-	}
-	fmt.Printf("Count collection: %d\n", count)
-
-	qr, err := col.Query(context.Background(), chromadb.WithQueryTexts("say hello"))
-	if err != nil {
-		log.Fatalf("Error querying collection: %s \n", err)
-		return
-	}
-	fmt.Printf("Query result: %v\n", qr.GetDocumentsGroups()[0][0])
-
-	err = col.Delete(context.Background(), chromadb.WithIDsDelete("1", "2"))
-	if err != nil {
-		log.Fatalf("Error deleting collection: %s \n", err)
-		return
-	}
 }
