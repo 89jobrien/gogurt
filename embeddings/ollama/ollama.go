@@ -15,6 +15,11 @@ type Embedder struct {
 	model  string
 }
 
+a = []float32
+
+a = "string"
+
+
 func New(cfg *config.Config) (*Embedder, error) {
 	client, err := api.ClientFromEnvironment()
 	if err != nil {
