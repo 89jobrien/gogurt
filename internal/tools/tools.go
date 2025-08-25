@@ -13,15 +13,33 @@ type Tool struct {
 	InputSchema map[string]any
 	Example     string
 	Metadata    map[string]any
+	
 }
 
-func (t *Tool) HasCategory(category string) bool {
+
+func (t *Tool) metaEqual(key, expect string) bool {
 	if t.Metadata == nil {
 		return false
 	}
-	cat, ok := t.Metadata["category"].(string)
-	return ok && cat == category
+	val, ok := t.Metadata[key].(string)
+	return ok && val == expect
 }
+
+func (t *Tool) HasCategory(category string) bool   { return t.metaEqual("category", category) }
+func (t *Tool) HasVersion(version string) bool     { return t.metaEqual("version", version) }
+func (t *Tool) HasAuthor(author string) bool       { return t.metaEqual("author", author) }
+
+func (t *Tool) HasDeprecated() bool {
+	if t.Metadata == nil {
+		return false
+	}
+	if d, ok := t.Metadata["deprecated"].(bool); ok {
+		return d
+	}
+	return false
+}
+
+func (t *Tool) HasMetadata() bool { return t.Metadata != nil }
 
 // New creates a new Tool from a Go function with a required name argument
 func New(name string, f any, description string) (*Tool, error) {
@@ -133,8 +151,10 @@ tool := &Tool{
     },
     Example:  `{"a": 1, "b": 2}`,
     Metadata: map[string]any{
+		"author": "joe",
         "category": "math",
         "version": "1.0",
+		"deprecated": false,
     },
 }
 

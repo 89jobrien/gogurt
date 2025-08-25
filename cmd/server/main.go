@@ -28,6 +28,13 @@ func Serve() {
 	}
 
 	registry.PrintAllDescs()
+	stats := registry.Stats()
+	fmt.Println("Stats:")
+	fmt.Printf("  Count: %d\n", stats.Count)
+	fmt.Printf("  ToolNames: %v\n", stats.ToolNames)
+	fmt.Printf("  Categories: %v\n", stats.Categories)
+	fmt.Printf("  HasDups: %v\n", stats.HasDups)
+	fmt.Printf("  HasCategory: %v\n\n", stats.HasCategory)
 
 	mux := http.NewServeMux()
 
