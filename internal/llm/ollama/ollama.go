@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"gogurt/internal/config"
+	"gogurt/internal/llm"
 	"gogurt/internal/types"
 
 	"github.com/ollama/ollama/api"
@@ -16,7 +17,20 @@ type Ollama struct {
 	model  string
 }
 
-func New(cfg *config.Config) (types.LLM, error) {
+// HealthCheck implements types.LLM.
+func (o *Ollama) HealthCheck(ctx context.Context) error {
+	_, err := o.Generate(ctx, []types.ChatMessage{{Role: "system", Content: "ping"}})
+	return err
+}
+
+// Metadata implements types.LLM.
+func (o *Ollama) Metadata() map[string]any {
+	md := make(map[string]any)
+	md["model"] = o.model
+	return md
+}
+
+func New(cfg *config.Config) (llm.LLM, error) {
 	client, err := api.ClientFromEnvironment()
 	if err != nil {
 		return nil, fmt.Errorf("failed to create ollama client: %w", err)

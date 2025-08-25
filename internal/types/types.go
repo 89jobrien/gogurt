@@ -17,11 +17,6 @@ type ChatMessage struct {
 	Content string
 }
 
-// interface that language model implementations must satisfy
-type LLM interface {
-	Generate(ctx context.Context, messages []ChatMessage) (*ChatMessage, error)
-}
-
 // represents a chunk of text from a source.
 type Document struct {
 	PageContent string
@@ -32,3 +27,34 @@ type Document struct {
 type DocumentLoader interface {
 	LoadDocuments() ([]Document, error)
 }
+
+type AgentConfig struct {
+	Name     string
+	AiClient map[string]any
+	Tools    []string
+	Params   map[string]any
+	Children []AgentConfig
+}
+
+// Used for agent introspection
+type AgentDescription struct {
+	Name         string
+	AiClient     map[string]any
+	Capabilities []string
+	Tools        []string
+	Children     []*AgentDescription
+}
+
+type AgentCallResult struct {
+	Output   string
+	Error    error
+	Metadata map[string]interface{}
+	Next     *AgentCallResult
+}
+
+type PipelineStep func(context.Context, any) (any, error)
+
+type NextStep func(context.Context, any) (*AgentCallResult, error)
+
+type EndStep func(context.Context, any) (*AgentCallResult, error)
+

@@ -1,0 +1,17 @@
+{
+  "Name": "PipelineAgent",
+  "Tools": [],
+  "Params": {},
+  "Children": [
+    {
+      "Name": "ResearchAgent",
+      "Tools": ["WebSearchTool"],
+      "Params": {}
+    },
+    {
+      "Name": "SummarizerAgent",
+      "Tools": ["SummarizeTool"],
+      "Params": {}
+    }
+  ]
+}

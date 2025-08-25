@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"gogurt/internal/config"
+	"gogurt/internal/llm"
 	"gogurt/internal/types"
 
 	"github.com/sashabaranov/go-openai"
@@ -17,7 +18,7 @@ type OpenAI struct {
 	client *openai.Client
 }
 
-func New(cfg *config.Config) (types.LLM, error) {
+func New(cfg *config.Config) (llm.LLM, error) {
 	apiKey := ""
 	if cfg != nil {
 		apiKey = cfg.OpenAIAPIKey

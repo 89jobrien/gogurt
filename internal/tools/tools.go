@@ -13,9 +13,7 @@ type Tool struct {
 	InputSchema map[string]any
 	Example     string
 	Metadata    map[string]any
-	
 }
-
 
 func (t *Tool) metaEqual(key, expect string) bool {
 	if t.Metadata == nil {
@@ -25,9 +23,9 @@ func (t *Tool) metaEqual(key, expect string) bool {
 	return ok && val == expect
 }
 
-func (t *Tool) HasCategory(category string) bool   { return t.metaEqual("category", category) }
-func (t *Tool) HasVersion(version string) bool     { return t.metaEqual("version", version) }
-func (t *Tool) HasAuthor(author string) bool       { return t.metaEqual("author", author) }
+func (t *Tool) HasCategory(category string) bool { return t.metaEqual("category", category) }
+func (t *Tool) HasVersion(version string) bool   { return t.metaEqual("version", version) }
+func (t *Tool) HasAuthor(author string) bool     { return t.metaEqual("author", author) }
 
 func (t *Tool) HasDeprecated() bool {
 	if t.Metadata == nil {

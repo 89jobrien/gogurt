@@ -2,15 +2,35 @@ package agent
 
 import (
 	"context"
-	"gogurt/internal/state"
+	"fmt"
+	"gogurt/internal/types"
 )
 
-// Agent interface
+// Agent interface with inspection and description
 type Agent interface {
-	Init(ctx context.Context, params map[string]interface{}) error                 // Flexible initialization
-	Invoke(ctx context.Context, input string) (*AgentCallResult, error)            // Synchronous call with chaining/metadata
-	InvokeAsync(ctx context.Context, input string) (<-chan AgentCallResult, error) // Async/streaming call
-	State() state.AgentState
+	Init(ctx context.Context, config types.AgentConfig) error
+	Invoke(ctx context.Context, input any) (any, error)
+	InvokeAsync(ctx context.Context, input any) (<-chan any, <-chan error)
+	Delegate(ctx context.Context, task any) (any, error)
 	Planner() Planner
-	Delegate(ctx context.Context, input string, agents []Agent) ([]*AgentCallResult, error) // Multi-agent orchestration
+	State() any
+	Capabilities() []string
+	Describe() *types.AgentDescription
+}
+
+// Describes an agent programmatically
+type AgentRegistry map[string]func() Agent
+
+var RegisteredAgents = make(AgentRegistry)
+
+func RegisterAgent(name string, factory func() Agent) {
+	RegisteredAgents[name] = factory
+}
+
+func NewAgent(config types.AgentConfig) (Agent, error) {
+	factory, ok := RegisteredAgents[config.Name]
+	if !ok {
+		return nil, fmt.Errorf("agent not registered: %s", config.Name)
+	}
+	return factory(), nil
 }

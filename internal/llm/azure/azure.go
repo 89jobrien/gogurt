@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"gogurt/internal/config"
+	"gogurt/internal/llm"
 	"gogurt/internal/types"
 
 	"github.com/sashabaranov/go-openai"
@@ -17,7 +18,20 @@ type Azure struct {
 	deploymentName string
 }
 
-func New(cfg *config.Config) (types.LLM, error) {
+// HealthCheck implements types.LLM.
+func (a *Azure) HealthCheck(ctx context.Context) error {
+	_, err := a.Generate(ctx, []types.ChatMessage{{Role: "system", Content: "ping"}})
+	return err
+}
+
+// Metadata implements types.LLM.
+func (a *Azure) Metadata() map[string]any {
+	md := make(map[string]any)
+	md["model"] = a.deploymentName
+	return md
+}
+
+func New(cfg *config.Config) (llm.LLM, error) {
 	// Validate that the required configuration is present.
 	if cfg.AzureOpenAIAPIKey == "" {
 		return nil, fmt.Errorf("azure api key not provided")

@@ -4,6 +4,7 @@ import (
 	"gogurt/internal/config"
 	"gogurt/internal/embeddings"
 	embollama "gogurt/internal/embeddings/ollama"
+	"gogurt/internal/llm"
 	"gogurt/internal/llm/azure"
 	llmollama "gogurt/internal/llm/ollama"
 	"gogurt/internal/llm/openai"
@@ -11,7 +12,6 @@ import (
 	"gogurt/internal/splitters/character"
 	"gogurt/internal/splitters/markdown"
 	"gogurt/internal/splitters/recursive"
-	"gogurt/internal/types"
 	"gogurt/internal/vectorstores"
 	"gogurt/internal/vectorstores/chroma"
 	"gogurt/internal/vectorstores/simple"
@@ -20,8 +20,8 @@ import (
 )
 
 // llm factory
-func GetLLM(cfg *config.Config) types.LLM {
-	var llm types.LLM
+func GetLLM(cfg *config.Config) llm.LLM {
+	var llm llm.LLM
 	var err error
 
 	switch cfg.LLMProvider {
