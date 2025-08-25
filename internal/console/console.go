@@ -9,17 +9,17 @@ type Console struct{}
 type styleAttrs []color.Attribute
 
 var styles = map[string]styleAttrs{
-	"Title":   {color.FgCyan, color.Italic, color.Bold},
-	"Hdr":     {color.FgBlue, color.Italic, color.Bold},
-	"Ok":      {color.FgHiGreen, color.Bold},
-	"Err":     {color.FgHiRed, color.Bold},
-	"Warn":    {color.FgHiYellow, color.Bold},
-	"Info":    {color.FgHiBlue, color.Bold},
-	"Prompt":  {color.FgMagenta},
-	"Input":   {color.FgHiMagenta, color.Bold},
-	"Usr":     {color.FgHiCyan, color.BlinkSlow},
-	"AI":      {color.FgHiBlue},
-	"Sys":     {color.FgHiYellow, color.Bold},
+	"Title":  {color.FgCyan, color.Italic, color.Bold},
+	"Hdr":    {color.FgBlue, color.Italic, color.Bold},
+	"Ok":     {color.FgHiGreen, color.Bold},
+	"Err":    {color.FgHiRed, color.Bold},
+	"Warn":   {color.FgHiYellow, color.Bold},
+	"Info":   {color.FgHiBlue, color.Bold},
+	"Prompt": {color.FgMagenta},
+	"Input":  {color.FgHiMagenta, color.Bold},
+	"Usr":    {color.FgHiCyan, color.BlinkSlow},
+	"AI":     {color.FgHiBlue},
+	"Sys":    {color.FgHiYellow, color.Bold},
 }
 
 func (c *Console) styledPrint(style string, format string, a ...any) {

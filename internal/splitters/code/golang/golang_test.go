@@ -62,7 +62,7 @@ type Foo struct{}`,
 			},
 		},
 		{
-			name: "File with tabs (ensure normalization to spaces)",
+			name:    "File with tabs (ensure normalization to spaces)",
 			content: "package main\n\nfunc main() {\n\tfmt.Println(\"hello with tab\")\n}\n",
 			expected: []string{
 				"package main",

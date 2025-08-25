@@ -8,7 +8,6 @@ import (
 // 	"gogurt/internal/cli"
 // )
 
-
 func main() {
 	server.Serve()
 }

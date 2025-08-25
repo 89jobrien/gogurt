@@ -54,7 +54,7 @@ func (s *MarkdownSplitter) SplitDocuments(docs []types.Document) []types.Documen
 				headerText := strings.TrimRight(currentChunk.String(), "\n")
 				// headerText2 := strings.SplitAfter(headerText, "# ")[1]
 				// headerText3 := strings.TrimSpace(headerText2)
-				
+
 				currentChunk.Reset()
 				currentChunk.WriteString(headerText)
 				if n.NextSibling() != nil {

@@ -57,27 +57,28 @@ func (e *Embedder) EmbedQuery(ctx context.Context, text string) ([]float32, erro
 	return embeddingF32, nil
 }
 
-
 func (e *Embedder) EmbedAll(ctx context.Context, docs []types.Document, workers int) ([][]float32, error) {
-    work := make(chan types.Document)
-    out := make(chan []float32)
-    go func() {
-        for _, doc := range docs {
-            work <- doc
-        }
-        close(work)
-    }()
-    var wg sync.WaitGroup
-    for range workers {
-        wg.Go(func() {
-            for doc := range work {
-                emb, _ := e.EmbedQuery(ctx, doc.PageContent)
-                out <- emb
-            }
-        })
-    }
-    go func() { wg.Wait(); close(out) }()
-    var result [][]float32
-    for emb := range out { result = append(result, emb) }
-    return result, nil
+	work := make(chan types.Document)
+	out := make(chan []float32)
+	go func() {
+		for _, doc := range docs {
+			work <- doc
+		}
+		close(work)
+	}()
+	var wg sync.WaitGroup
+	for range workers {
+		wg.Go(func() {
+			for doc := range work {
+				emb, _ := e.EmbedQuery(ctx, doc.PageContent)
+				out <- emb
+			}
+		})
+	}
+	go func() { wg.Wait(); close(out) }()
+	var result [][]float32
+	for emb := range out {
+		result = append(result, emb)
+	}
+	return result, nil
 }

@@ -82,8 +82,8 @@ func (a *basic) findTool(name string) (*tools.Tool, error) {
 }
 
 func (b *basic) Delegate(ctx context.Context, input string, agents []Agent) ([]*AgentCallResult, error) {
-    // Minimal empty implementation for interface satisfaction
-    return nil, nil
+	// Minimal empty implementation for interface satisfaction
+	return nil, nil
 }
 
 func (b *basic) InvokeAsync(ctx context.Context, input string) (<-chan AgentCallResult, error) {

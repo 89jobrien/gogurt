@@ -59,8 +59,8 @@ func (i *IngestPipe) Run(ctx context.Context) error {
 		return fmt.Errorf("failed to add documents to vector store: %w", err)
 	}
 
-	c.Write("Document ingestion completed successfully", 
-		"documents_loaded", len(docs), 
+	c.Write("Document ingestion completed successfully",
+		"documents_loaded", len(docs),
 		"chunks_created", len(chunks))
 
 	return nil

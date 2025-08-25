@@ -1,11 +1,11 @@
 package code
 
 import (
-	"gogurt/splitters/code/golang"
-	"gogurt/splitters/code/javascript"
-	"gogurt/splitters/code/python"
-	"gogurt/splitters/recursive"
-	"gogurt/types"
+	"gogurt/internal/splitters/code/golang"
+	"gogurt/internal/splitters/code/javascript"
+	"gogurt/internal/splitters/code/python"
+	"gogurt/internal/splitters/recursive"
+	"gogurt/internal/types"
 	"path/filepath"
 )
 

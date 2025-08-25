@@ -120,13 +120,13 @@ func (o *OpenAI) Stream(ctx context.Context, messages []types.ChatMessage, onTok
 }
 
 func (o *OpenAI) HealthCheck(ctx context.Context) error {
-    // Simple completion with small dummy prompt, expect nil error on healthy.
-    _, err := o.Generate(ctx, []types.ChatMessage{{Role: "system", Content: "ping"}})
-    return err
+	// Simple completion with small dummy prompt, expect nil error on healthy.
+	_, err := o.Generate(ctx, []types.ChatMessage{{Role: "system", Content: "ping"}})
+	return err
 }
 func (o *OpenAI) Metadata() map[string]interface{} {
-    return map[string]interface{}{
-        "provider": "OpenAI",
-        "version":  "latest",
-    }
+	return map[string]interface{}{
+		"provider": "OpenAI",
+		"version":  "latest",
+	}
 }

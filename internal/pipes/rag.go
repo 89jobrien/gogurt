@@ -25,7 +25,7 @@ func NewRAGPipe(ctx context.Context, cfg *config.Config) (*RAGPipe, error) {
 	// Initialize components
 	llmClient := factories.GetLLM(cfg)
 	aiAgent := agent.New(llmClient, cfg.AgentMaxIterations)
-	
+
 	embedder := factories.GetEmbedder(cfg)
 	vectorStore := factories.GetVectorStore(cfg, embedder)
 

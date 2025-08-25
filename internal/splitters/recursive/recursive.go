@@ -123,7 +123,7 @@ func (s *RecursiveSplitter) mergeSplits(splits []string, separator string) []str
 func (s *RecursiveSplitter) splitByCharacter(text string) []string {
 	var chunks []string
 	for i := 0; i < len(text); i += s.ChunkSize - s.ChunkOverlap {
-		end := min(i + s.ChunkSize, len(text))
+		end := min(i+s.ChunkSize, len(text))
 		chunks = append(chunks, text[i:end])
 	}
 	return chunks

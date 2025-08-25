@@ -6,5 +6,5 @@ import (
 )
 
 type Planner interface {
-    Plan(ctx context.Context, goal string, state state.AgentState) ([]string, error)
+	Plan(ctx context.Context, goal string, state state.AgentState) ([]string, error)
 }

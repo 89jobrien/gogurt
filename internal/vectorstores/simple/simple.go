@@ -38,8 +38,6 @@ func (s *Store) AddDocuments(ctx context.Context, docs []types.Document) error {
 	return nil
 }
 
-
-
 func (s *Store) SimilaritySearch(ctx context.Context, query string, k int) ([]types.Document, error) {
 	queryVector, err := s.embedder.EmbedQuery(ctx, query)
 	if err != nil {

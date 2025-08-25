@@ -1,6 +1,6 @@
 package prompts
 
 type BasicPromptTemplate struct {
-    Name     string
-    Template string
+	Name     string
+	Template string
 }

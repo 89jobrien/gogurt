@@ -5,7 +5,7 @@ import (
 )
 
 type CharSplitter struct {
-	ChunkSize   int
+	ChunkSize    int
 	ChunkOverlap int
 }
 
