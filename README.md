@@ -197,3 +197,19 @@ You: exit
 |-- main.go
 |-- README.md
 ```
+
+## Overview
+
+| Filepath                     | Purpose                           | Interfaces & Methods                                                                                                              |
+| ---------------------------- | --------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| /agent/agent.go              | Agent logic interface             | Agent interface: Init(ctx, params), Invoke(ctx, input), InvokeAsync(ctx, input), State(), Planner(), Delegate(ctx, input, agents) |
+| /agent/planner.go            | Agent planning                    | Planner interface: Plan(ctx, goal, state)                                                                                         |
+| /agent/result.go             | Agent call results data structure | AgentCallResult struct: Output, Error, Metadata, Next                                                                             |
+| /llm/llm.go                  | LLM integrations                  | LLM interface: Generate(ctx, messages), Stream(ctx, messages, onToken)                                                            |
+| /embeddings/embeddings.go    | Embeddings module                 | Embedder interface: EmbedDocuments(ctx, docs), EmbedQuery(ctx, text)                                                              |
+| /vectorstores/vectorstore.go | Vector DB interface               | VectorStore interface: AddDocuments(ctx, docs), SimilaritySearch(ctx, query, k)                                                   |
+| /documentloaders/loader.go   | Document parsing/dispatch         | LoadDocuments(path), loadFromFile(filePath), loadFromDirectory(dirPath)                                                           |
+| /types/types.go              | Central types and core interfaces | LLM interface, ChatMessage struct, Role constants, Document struct, DocumentLoader interface                                      |
+| /tools/tools.go              | Custom tools and invocation       | Tool struct: Name, Description, Func, InputSchema, Example, Metadata; Tool.Call(jsonArgs), Tool.Describe()                        |
+| /splitters/splitter.go       | Document text splitters           | Splitter interface: SplitDocuments(docs)                                                                                          |
+| /config/config.go            | Config loader & struct            | Config struct: LLMProvider, OllamaHost, OpenAIAPIKey, VectorStoreProvider, Chroma settings, etc.; Load(), getEnv(key, fallback)   |

@@ -1,9 +1,18 @@
 package main
 
 import (
-	"gogurt/cli"
+	"gogurt/cmd/server"
 )
 
+// import (
+// 	"gogurt/internal/cli"
+// )
+
+
 func main() {
-    cli.Execute()
+	server.Serve()
 }
+
+// func main() {
+//     cli.Execute()
+// }
