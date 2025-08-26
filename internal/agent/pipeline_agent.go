@@ -3,27 +3,39 @@ package agent
 import (
 	"context"
 	"fmt"
+	"gogurt/internal/state"
 	"gogurt/internal/types"
 )
 
-type PipelineStep func(ctx context.Context, input any) (any, error)
+// PipelineStep is a single step, which should update state as needed and return output and state.
+type PipelineStep func(ctx context.Context, input any, st state.AgentState) (any, state.AgentState, error)
 
 type PipelineAgent struct {
 	Steps []PipelineStep
+	State state.AgentState // current state of the agent, updated after each step
 }
 
 func (p *PipelineAgent) Invoke(ctx context.Context, input string) (*types.AgentCallResult, error) {
 	var data any = input
 	var err error
+	currentState := p.State
 	for _, step := range p.Steps {
-		data, err = step(ctx, data)
+		var newState state.AgentState
+		data, newState, err = step(ctx, data, currentState)
 		if err != nil {
 			return nil, err
 		}
+		if newState != nil {
+			currentState = newState
+		}
 	}
+	p.State = currentState
 	return &types.AgentCallResult{
-		Output:   fmt.Sprintf("%v", data),
-		Metadata: map[string]any{"pipeline": true},
+		Output: fmt.Sprintf("%v", data),
+		Metadata: map[string]any{
+			"pipeline": true,
+			"state":    currentState,
+		},
 	}, nil
 }
 

@@ -1,12 +1,10 @@
 package server
 
 import (
-	"fmt"
 	"gogurt/internal/tools"
 	"log"
 	"net/http"
 )
-
 
 
 func Serve() {
@@ -26,17 +24,17 @@ func Serve() {
 	})
 	for _, err := range errs {
 		if err != nil {
-			fmt.Println("Registration error:", err)
+			log.Println("Registration error:", err)
 		}
 	}
 
 	stats := registry.Stats()
-	fmt.Println("Tool Stats:")
-	fmt.Printf("  Count: %d\n", stats.Count)
-	fmt.Printf("  Available Tools: %v\n", stats.ToolNames)
-	fmt.Printf("  Tool Categories: %v\n", stats.Categories)
-	fmt.Printf("  Duplicates?: %v\n", stats.HasDups)
-	fmt.Printf("  HasCategory: %v\n\n", stats.HasCategory)
+	log.Println("Tool Stats:")
+	log.Printf("  Count: %d\n", stats.Count)
+	log.Printf("  Available Tools: %v\n", stats.ToolNames)
+	log.Printf("  Tool Categories: %v\n", stats.Categories)
+	log.Printf("  Duplicates?: %v\n", stats.HasDups)
+	log.Printf("  HasCategory: %v\n\n", stats.HasCategory)
 	log.Println("Server running at :8080")
 	
 	handler := MiddlewareHandler(mux)
