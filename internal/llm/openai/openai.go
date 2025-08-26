@@ -42,7 +42,7 @@ func (o *OpenAI) Generate(ctx context.Context, messages []types.ChatMessage) (*t
 		}
 	}
 	resp, err := o.client.CreateChatCompletion(ctx, openai.ChatCompletionRequest{
-		Model:   openai.GPT4o,
+		Model:    openai.GPT4o,
 		Messages: apiMessages,
 	})
 	if err != nil {
@@ -85,7 +85,7 @@ func (o *OpenAI) Stream(ctx context.Context, messages []types.ChatMessage, onTok
 		}
 	}
 	req := openai.ChatCompletionRequest{
-		Model:   openai.GPT4o,
+		Model:    openai.GPT4o,
 		Messages: apiMessages,
 	}
 	stream, err := o.client.CreateChatCompletionStream(ctx, req)

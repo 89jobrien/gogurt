@@ -25,7 +25,6 @@ func New(embedder embeddings.Embedder) vectorstores.VectorStore {
 	return &Store{embedder: embedder}
 }
 
-
 func (s *Store) AddDocuments(ctx context.Context, docs []types.Document) error {
 	if len(docs) == 0 {
 		return nil

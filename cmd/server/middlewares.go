@@ -45,3 +45,7 @@ func recoveryMiddleware(next http.Handler) http.Handler {
 		next.ServeHTTP(w, r)
 	})
 }
+
+func MiddlewareHandler(handler http.Handler) http.Handler {
+	return recoveryMiddleware(corsMiddleware(loggingMiddleware(handler)))
+}

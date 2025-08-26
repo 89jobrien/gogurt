@@ -16,15 +16,15 @@ type mockGraphAgent struct {
 }
 
 func (a *mockGraphAgent) Init(ctx context.Context, config types.AgentConfig) error { return a.initErr }
-func (a *mockGraphAgent) Invoke(ctx context.Context, input any) (any, error)        { return nil, nil }
+func (a *mockGraphAgent) Invoke(ctx context.Context, input any) (any, error)       { return nil, nil }
 func (a *mockGraphAgent) InvokeAsync(ctx context.Context, input any) (<-chan any, <-chan error) {
 	return nil, nil
 }
-func (a *mockGraphAgent) Delegate(ctx context.Context, task any) (any, error)   { return nil, nil }
-func (a *mockGraphAgent) Planner() Planner                                     { return nil }
-func (a *mockGraphAgent) State() any                                           { return nil }
-func (a *mockGraphAgent) Capabilities() []string                               { return nil }
-func (a *mockGraphAgent) Describe() *types.AgentDescription                    { return nil }
+func (a *mockGraphAgent) Delegate(ctx context.Context, task any) (any, error) { return nil, nil }
+func (a *mockGraphAgent) Planner() Planner                                    { return nil }
+func (a *mockGraphAgent) State() any                                          { return nil }
+func (a *mockGraphAgent) Capabilities() []string                              { return nil }
+func (a *mockGraphAgent) Describe() *types.AgentDescription                   { return nil }
 
 // Implements AddChild if needed
 func (a *mockGraphAgent) AddChild(child Agent) {
@@ -67,7 +67,9 @@ func TestNewAgentGraph_MissingRegistry(t *testing.T) {
 	}
 }
 
-func containsString(s, substr string) bool { return s != "" && substr != "" && (len(s) == len(substr) || len(s) > 0 && len(substr) > 0 && (s == substr || (len(substr) < len(s) && s[len(s)-len(substr):] == substr))) }
+func containsString(s, substr string) bool {
+	return s != "" && substr != "" && (len(s) == len(substr) || len(s) > 0 && len(substr) > 0 && (s == substr || (len(substr) < len(s) && s[len(s)-len(substr):] == substr)))
+}
 
 func TestNewAgentGraph_InitFails(t *testing.T) {
 	ctx := context.Background()

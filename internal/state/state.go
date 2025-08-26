@@ -27,7 +27,7 @@ type AgentState interface {
 type PersistentState interface {
 	Save(state AgentState) error
 	Load() (AgentState, error)
-	
+
 	ASave(ctx context.Context, state AgentState) <-chan error
 	ALoad(ctx context.Context) (<-chan AgentState, <-chan error)
 }
@@ -246,6 +246,7 @@ var (
 type StateError struct {
 	msg string
 }
+
 func (e *StateError) Error() string {
 	return e.msg
 }

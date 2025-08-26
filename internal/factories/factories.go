@@ -71,7 +71,7 @@ func GetSplitter(cfg *config.Config) splitters.Splitter {
 }
 
 // async splitter factory
-func AGetSplitter(ctx context.Context, cfg *config.Config) (<-chan splitters.Splitter) {
+func AGetSplitter(ctx context.Context, cfg *config.Config) <-chan splitters.Splitter {
 	out := make(chan splitters.Splitter, 1)
 	go func() {
 		defer close(out)

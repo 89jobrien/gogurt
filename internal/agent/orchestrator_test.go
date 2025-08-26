@@ -9,7 +9,6 @@ import (
 	"gogurt/internal/types"
 )
 
-
 func makeCallResult(val string, err error) *types.AgentCallResult {
 	return &types.AgentCallResult{Output: val, Error: err}
 }
@@ -138,13 +137,15 @@ func (m *chainedMock) Invoke(ctx context.Context, input any) (any, error) {
 }
 
 // Satisfy the Agent interface
-func (m *chainedMock) Capabilities() []string                           { return nil }
-func (m *chainedMock) Delegate(ctx context.Context, task any) (any, error) { return nil, nil }
+func (m *chainedMock) Capabilities() []string                                   { return nil }
+func (m *chainedMock) Delegate(ctx context.Context, task any) (any, error)      { return nil, nil }
 func (m *chainedMock) Init(ctx context.Context, config types.AgentConfig) error { return nil }
-func (m *chainedMock) InvokeAsync(ctx context.Context, input any) (<-chan any, <-chan error) { return nil, nil }
-func (m *chainedMock) Planner() Planner                   { return nil }
-func (m *chainedMock) State() any                         { return nil }
-func (m *chainedMock) Describe() *types.AgentDescription  { return nil }
+func (m *chainedMock) InvokeAsync(ctx context.Context, input any) (<-chan any, <-chan error) {
+	return nil, nil
+}
+func (m *chainedMock) Planner() Planner                  { return nil }
+func (m *chainedMock) State() any                        { return nil }
+func (m *chainedMock) Describe() *types.AgentDescription { return nil }
 
 func TestOrchestrator_RunPiped(t *testing.T) {
 	ctx := context.Background()

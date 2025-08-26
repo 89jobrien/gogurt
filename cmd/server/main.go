@@ -1,15 +1,18 @@
 package server
 
 import (
-	"encoding/json"
 	"fmt"
 	"gogurt/internal/tools"
 	"log"
 	"net/http"
 )
 
+
+
 func Serve() {
-	// 1. Setup tool registry
+	mux := http.NewServeMux()
+	RegisterRoutes(mux)
+
 	registry := tools.NewRegistry()
 	errs := registry.RegisterBatch([]*tools.Tool{
 		tools.PalindromeTool,
@@ -27,44 +30,15 @@ func Serve() {
 		}
 	}
 
-	registry.PrintAllDescs()
 	stats := registry.Stats()
-	fmt.Println("Stats:")
+	fmt.Println("Tool Stats:")
 	fmt.Printf("  Count: %d\n", stats.Count)
-	fmt.Printf("  ToolNames: %v\n", stats.ToolNames)
-	fmt.Printf("  Categories: %v\n", stats.Categories)
-	fmt.Printf("  HasDups: %v\n", stats.HasDups)
+	fmt.Printf("  Available Tools: %v\n", stats.ToolNames)
+	fmt.Printf("  Tool Categories: %v\n", stats.Categories)
+	fmt.Printf("  Duplicates?: %v\n", stats.HasDups)
 	fmt.Printf("  HasCategory: %v\n\n", stats.HasCategory)
-
-	mux := http.NewServeMux()
-
-	mux.HandleFunc("/tool", func(w http.ResponseWriter, r *http.Request) {
-		var req struct {
-			Name string          `json:"name"`
-			Args json.RawMessage `json:"args"`
-		}
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, "Bad request", http.StatusBadRequest)
-			return
-		}
-		result, err := registry.Call(req.Name, string(req.Args))
-		resp := map[string]any{"result": result, "error": ""}
-		if err != nil {
-			resp["error"] = err.Error()
-		}
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(resp)
-	})
-
-	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("ok"))
-	})
-
-	var handler http.Handler = mux
-	handler = loggingMiddleware(handler)
-	handler = corsMiddleware(handler)
-	handler = recoveryMiddleware(handler)
-
 	log.Println("Server running at :8080")
+	
+	handler := MiddlewareHandler(mux)
 	log.Fatal(http.ListenAndServe(":8080", handler))
 }
