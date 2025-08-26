@@ -1,0 +1,116 @@
+package agent
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"gogurt/internal/state"
+	"gogurt/internal/tools"
+	"gogurt/internal/types"
+	"strings"
+)
+
+// WorkerAgent executes a single tool call.
+type WorkerAgent struct {
+	state state.AgentState
+	tools *tools.Registry
+}
+
+// NewWorkerAgent creates a new WorkerAgent.
+func NewWorkerAgent(registry *tools.Registry) Agent {
+	return &WorkerAgent{
+		state: state.NewMemoryState(),
+		tools: registry,
+	}
+}
+
+// Init initializes the agent with a given configuration.
+func (a *WorkerAgent) Init(ctx context.Context, config types.AgentConfig) error {
+	// Initialization logic for WorkerAgent, if any, would go here.
+	return nil
+}
+
+// Invoke takes a tool call string (e.g., "tool_name:{\"arg\":\"value\"}") and executes it.
+func (a *WorkerAgent) Invoke(ctx context.Context, input any) (any, error) {
+	task, ok := input.(string)
+	if !ok {
+		return nil, fmt.Errorf("invalid input type for WorkerAgent: expected string, got %T", input)
+	}
+
+	parts := strings.SplitN(task, ":", 2)
+	toolName := parts[0]
+	var args string
+	if len(parts) > 1 {
+		args = parts[1]
+	}
+
+	result, err := a.tools.Call(toolName, args)
+	if err != nil {
+		return nil, fmt.Errorf("tool call failed for '%s': %w", toolName, err)
+	}
+
+	return result, nil
+}
+
+// InvokeAsync is the asynchronous version of Invoke.
+func (a *WorkerAgent) InvokeAsync(ctx context.Context, input any) (<-chan any, <-chan error) {
+	resultCh := make(chan any, 1)
+	errorCh := make(chan error, 1)
+	go func() {
+		defer close(resultCh)
+		defer close(errorCh)
+		res, err := a.Invoke(ctx, input)
+		if err != nil {
+			errorCh <- err
+			return
+		}
+		resultCh <- res
+	}()
+	return resultCh, errorCh
+}
+
+// OnMessage handles agent-to-agent communication.
+func (a *WorkerAgent) OnMessage(ctx context.Context, msg *types.StateMessage) (*types.StateMessage, error) {
+	result, err := a.Invoke(ctx, msg.Message)
+	if err != nil {
+		return nil, err
+	}
+	resultBytes, _ := json.Marshal(result)
+	return NewStateMessage(types.RoleAssistant, string(resultBytes)), nil
+}
+
+// OnMessageAsync is the asynchronous version of OnMessage.
+func (a *WorkerAgent) OnMessageAsync(ctx context.Context, msg *types.StateMessage) (<-chan *types.StateMessage, <-chan error) {
+	resultCh := make(chan *types.StateMessage, 1)
+	errorCh := make(chan error, 1)
+	go func() {
+		defer close(resultCh)
+		defer close(errorCh)
+		res, err := a.OnMessage(ctx, msg)
+		if err != nil {
+			errorCh <- err
+			return
+		}
+		resultCh <- res
+	}()
+	return resultCh, errorCh
+}
+
+// State returns the agent's current state.
+func (a *WorkerAgent) State() *state.AgentState {
+	return &a.state
+}
+
+// Describe returns a description of the agent.
+func (a *WorkerAgent) Describe() *types.AgentDescription {
+	return &types.AgentDescription{
+		Name:         "WorkerAgent",
+		Capabilities: []string{"tool-execution"},
+	}
+}
+
+func init() {
+	RegisterAgent("WorkerAgent", func() Agent {
+		return &WorkerAgent{}
+	})
+}

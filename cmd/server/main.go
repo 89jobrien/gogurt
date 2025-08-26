@@ -3,11 +3,23 @@ package server
 import (
 	"gogurt/internal/tools"
 	"log"
+	"log/slog"
 	"net/http"
+	"os"
 )
 
-
 func Serve() {
+	// --- Structured Logger Setup ---
+	// This configures a global logger that writes to gogurt.log.
+	logFile, err := os.OpenFile("gogurt.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+	if err != nil {
+		log.Fatalf("failed to open log file: %v", err)
+	}
+
+	logger := slog.New(slog.NewJSONHandler(logFile, nil))
+	slog.SetDefault(logger)
+	// --- End Logger Setup ---
+
 	mux := http.NewServeMux()
 	RegisterRoutes(mux)
 
@@ -36,7 +48,7 @@ func Serve() {
 	log.Printf("  Duplicates?: %v\n", stats.HasDups)
 	log.Printf("  HasCategory: %v\n\n", stats.HasCategory)
 	log.Println("Server running at :8080")
-	
+
 	handler := MiddlewareHandler(mux)
 	log.Fatal(http.ListenAndServe(":8080", handler))
 }

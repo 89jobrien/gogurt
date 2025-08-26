@@ -13,4 +13,5 @@ func RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/metrics", handlers.MetricsHandler)
 	mux.HandleFunc("/version", handlers.VersionHandler)
 	mux.HandleFunc("/docs", handlers.DocsHandler)
+	mux.HandleFunc("/workflow", handlers.WorkflowHandler)
 }

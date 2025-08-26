@@ -51,3 +51,4 @@ go.work.sum
 
 # env file
 .env
+gogurt.log
