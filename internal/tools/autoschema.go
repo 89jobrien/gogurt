@@ -1,14 +1,14 @@
 package tools
 
 import (
+	"context"
 	"reflect"
 )
 
-// AutoInputSchema generates a JSON Schema for a struct type.
-func AutoInputSchema(t reflect.Type) map[string]any {
+// GenInputSchema generates a JSON Schema for a struct type.
+func GenInputSchema(t reflect.Type) map[string]any {
 	properties := make(map[string]any)
 	required := []string{}
-
 	// Dereference pointer types if necessary
 	if t.Kind() == reflect.Pointer {
 		t = t.Elem()
@@ -16,7 +16,6 @@ func AutoInputSchema(t reflect.Type) map[string]any {
 	if t.Kind() != reflect.Struct {
 		return nil
 	}
-
 	for i := 0; i < t.NumField(); i++ {
 		field := t.Field(i)
 		jsonTag := field.Tag.Get("json")
@@ -57,4 +56,14 @@ func findComma(tag string) int {
 		}
 	}
 	return -1
+}
+
+// AGenInputSchema is an async version of GenInputSchema
+func AGenInputSchema(ctx context.Context, t reflect.Type) <-chan map[string]any {
+	out := make(chan map[string]any, 1)
+	go func() {
+		defer close(out)
+		out <- GenInputSchema(t)
+	}()
+	return out
 }

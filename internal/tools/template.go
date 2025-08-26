@@ -16,7 +16,7 @@ var MyToolInstance = &Tool{
 	Name:        "...",
 	Description: "...",
 	Func:        reflect.ValueOf(MyTool),
-	InputSchema: AutoInputSchema(reflect.TypeOf(MyArgs{})),
+	InputSchema: GenInputSchema(reflect.TypeOf(MyArgs{})),
 	Example:     `{"Field":"example"}`,
 	Metadata:    map[string]any{"category": "..."},
 }

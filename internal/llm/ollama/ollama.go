@@ -83,7 +83,24 @@ func (o *Ollama) Generate(ctx context.Context, messages []types.ChatMessage) (*t
 	}, nil
 }
 
-// Stream streams model output from Ollama, forwarding chunks to onToken
+// AGenerate provides an asynchronous Generate.
+func (o *Ollama) AGenerate(ctx context.Context, messages []types.ChatMessage) (<-chan *types.ChatMessage, <-chan error) {
+	msgCh := make(chan *types.ChatMessage, 1)
+	errCh := make(chan error, 1)
+	go func() {
+		defer close(msgCh)
+		defer close(errCh)
+		msg, err := o.Generate(ctx, messages)
+		if err != nil {
+			errCh <- err
+			return
+		}
+		msgCh <- msg
+	}()
+	return msgCh, errCh
+}
+
+// Stream streams model output from Ollama, forwarding chunks to onToken.
 func (o *Ollama) Stream(ctx context.Context, messages []types.ChatMessage, onToken func(token string) error) (*types.ChatMessage, error) {
 	apiMessages := make([]api.Message, len(messages))
 	for i, msg := range messages {
@@ -104,16 +121,13 @@ func (o *Ollama) Stream(ctx context.Context, messages []types.ChatMessage, onTok
 	var responseRole types.Role
 
 	err := o.client.Chat(ctx, req, func(res api.ChatResponse) error {
-		// Determine role if provided
 		if responseRole == "" && res.Message.Role != "" {
 			responseRole = types.Role(res.Message.Role)
 		}
 
 		token := res.Message.Content
 		if token != "" {
-			// Forward to the provided callback.
 			if err := onToken(token); err != nil {
-				// Returning an error from this callback will stop the stream and bubble up.
 				return err
 			}
 			responseContent.WriteString(token)
@@ -133,4 +147,23 @@ func (o *Ollama) Stream(ctx context.Context, messages []types.ChatMessage, onTok
 		Role:    responseRole,
 		Content: responseContent.String(),
 	}, nil
+}
+
+// AStream provides an asynchronous streaming interface returning tokens.
+func (o *Ollama) AStream(ctx context.Context, messages []types.ChatMessage) (<-chan string, <-chan error) {
+	tokenCh := make(chan string)
+	errCh := make(chan error, 1)
+	go func() {
+		defer close(tokenCh)
+		defer close(errCh)
+
+		_, err := o.Stream(ctx, messages, func(token string) error {
+			tokenCh <- token
+			return nil
+		})
+		if err != nil {
+			errCh <- err
+		}
+	}()
+	return tokenCh, errCh
 }

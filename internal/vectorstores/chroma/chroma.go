@@ -3,11 +3,10 @@ package chroma
 import (
 	"context"
 	"fmt"
-
-	chromadb "github.com/amikos-tech/chroma-go/pkg/api/v2"
-
 	"gogurt/internal/config"
 	ggtypes "gogurt/internal/types"
+
+	chromadb "github.com/amikos-tech/chroma-go/pkg/api/v2"
 )
 
 type Store struct {
@@ -24,7 +23,6 @@ func New(cfg *config.Config) (*Store, error) {
 		return nil, err
 	}
 	store.Client = client
-
 	col, err := client.GetOrCreateCollection(context.Background(), cfg.ChromaCollection,
 		chromadb.WithCollectionMetadataCreate(
 			chromadb.NewMetadata(
@@ -42,20 +40,32 @@ func New(cfg *config.Config) (*Store, error) {
 	return store, nil
 }
 
+func ANew(ctx context.Context, cfg *config.Config) (<-chan *Store, <-chan error) {
+	out := make(chan *Store, 1)
+	errCh := make(chan error, 1)
+	go func() {
+		defer close(out)
+		defer close(errCh)
+		store, err := New(cfg)
+		if err != nil {
+			errCh <- err
+			return
+		}
+		out <- store
+	}()
+	return out, errCh
+}
+
 func (s *Store) AddDocuments(ctx context.Context, docs []ggtypes.Document) error {
 	if s.Col == nil {
 		return fmt.Errorf("collection not initialized")
 	}
-
 	ids := make([]string, len(docs))
 	texts := make([]string, len(docs))
 	metadatas := make([]chromadb.DocumentMetadata, len(docs))
-
 	for i, d := range docs {
-		ids[i] = fmt.Sprintf("doc-%d", i) // you could also use ULID if you want uniqueness
+		ids[i] = fmt.Sprintf("doc-%d", i)
 		texts[i] = d.PageContent
-
-		// Convert map[string]any to Chroma DocumentMetadata
 		if d.Metadata != nil {
 			attrs := []*chromadb.MetaAttribute{}
 			for k, v := range d.Metadata {
@@ -67,7 +77,6 @@ func (s *Store) AddDocuments(ctx context.Context, docs []ggtypes.Document) error
 				case float64:
 					attrs = append(attrs, chromadb.NewFloatAttribute(k, val))
 				default:
-					// skip unsupported metadata types or stringify them
 					attrs = append(attrs, chromadb.NewStringAttribute(k, fmt.Sprintf("%v", val)))
 				}
 			}
@@ -76,7 +85,6 @@ func (s *Store) AddDocuments(ctx context.Context, docs []ggtypes.Document) error
 			metadatas[i] = chromadb.NewDocumentMetadata()
 		}
 	}
-
 	return s.Col.Add(ctx,
 		chromadb.WithIDGenerator(chromadb.NewULIDGenerator()),
 		chromadb.WithTexts(texts...),
@@ -84,24 +92,28 @@ func (s *Store) AddDocuments(ctx context.Context, docs []ggtypes.Document) error
 	)
 }
 
+func (s *Store) AAddDocuments(ctx context.Context, docs []ggtypes.Document) <-chan error {
+	errCh := make(chan error, 1)
+	go func() {
+		defer close(errCh)
+		errCh <- s.AddDocuments(ctx, docs)
+	}()
+	return errCh
+}
+
 func (s *Store) SimilaritySearch(ctx context.Context, query string, k int) ([]ggtypes.Document, error) {
 	if s.Col == nil {
 		return nil, fmt.Errorf("collection not initialized")
 	}
-
 	resp, err := s.Col.Query(ctx,
 		chromadb.WithQueryTexts(query),
 		chromadb.WithNResults(k))
 	if err != nil {
 		return nil, err
 	}
-
 	textsGroups := resp.GetDocumentsGroups()
 	metadatasGroups := resp.GetMetadatasGroups()
-
-	// Define the keys you expect, or ideally get this from configuration
-	metadataKeys := []string{"str", "int", "float"} // <-- set your known/extracted keys here
-
+	metadataKeys := []string{"str", "int", "float"}
 	docs := []ggtypes.Document{}
 	for groupIdx, documents := range textsGroups {
 		var metadatas []chromadb.DocumentMetadata
@@ -125,6 +137,21 @@ func (s *Store) SimilaritySearch(ctx context.Context, query string, k int) ([]gg
 			})
 		}
 	}
-
 	return docs, nil
+}
+
+func (s *Store) ASimilaritySearch(ctx context.Context, query string, k int) (<-chan []ggtypes.Document, <-chan error) {
+	out := make(chan []ggtypes.Document, 1)
+	errCh := make(chan error, 1)
+	go func() {
+		defer close(out)
+		defer close(errCh)
+		result, err := s.SimilaritySearch(ctx, query, k)
+		if err != nil {
+			errCh <- err
+			return
+		}
+		out <- result
+	}()
+	return out, errCh
 }

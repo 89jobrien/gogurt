@@ -11,10 +11,10 @@ type Agent interface {
 	Init(ctx context.Context, config types.AgentConfig) error
 	Invoke(ctx context.Context, input any) (any, error)
 	InvokeAsync(ctx context.Context, input any) (<-chan any, <-chan error)
-	Delegate(ctx context.Context, task any) (any, error)
-	Planner() Planner
+	// Delegate(ctx context.Context, task any) (any, error)
+	// Planner() Planner
 	State() any
-	Capabilities() []string
+	// Capabilities() []string
 	Describe() *types.AgentDescription
 }
 
@@ -31,6 +31,9 @@ func NewAgent(config types.AgentConfig) (Agent, error) {
 	factory, ok := RegisteredAgents[config.Name]
 	if !ok {
 		return nil, fmt.Errorf("agent not registered: %s", config.Name)
+	}
+	if factory == nil {
+		return nil, fmt.Errorf("agent factory for %q is nil", config.Name)
 	}
 	return factory(), nil
 }

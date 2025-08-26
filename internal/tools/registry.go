@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"strings"
@@ -38,6 +39,16 @@ func (r *Registry) Register(tool *Tool) error {
 	return nil
 }
 
+// Async Register
+func (r *Registry) ARegister(ctx context.Context, tool *Tool) <-chan error {
+	errCh := make(chan error, 1)
+	go func() {
+		defer close(errCh)
+		errCh <- r.Register(tool)
+	}()
+	return errCh
+}
+
 func isValidToolName(name string) bool {
 	return name != "" && !strings.ContainsAny(name, " \t\n")
 }
@@ -52,11 +63,31 @@ func (r *Registry) RegisterBatch(tools []*Tool) []error {
 	return errs
 }
 
+// Async RegisterBatch
+func (r *Registry) ARegisterBatch(ctx context.Context, tools []*Tool) <-chan []error {
+	errCh := make(chan []error, 1)
+	go func() {
+		defer close(errCh)
+		errCh <- r.RegisterBatch(tools)
+	}()
+	return errCh
+}
+
 func (r *Registry) Get(name string) *Tool {
 	if !isValidToolName(name) {
 		return nil
 	}
 	return r.tools[name]
+}
+
+// Async Get
+func (r *Registry) AGet(ctx context.Context, name string) <-chan *Tool {
+	out := make(chan *Tool, 1)
+	go func() {
+		defer close(out)
+		out <- r.Get(name)
+	}()
+	return out
 }
 
 func (r *Registry) Call(name string, jsonArgs string) (any, error) {
@@ -67,8 +98,35 @@ func (r *Registry) Call(name string, jsonArgs string) (any, error) {
 	return tool.Call(jsonArgs)
 }
 
+// Async Call
+func (r *Registry) ACall(ctx context.Context, name string, jsonArgs string) (<-chan any, <-chan error) {
+	out := make(chan any, 1)
+	errCh := make(chan error, 1)
+	go func() {
+		defer close(out)
+		defer close(errCh)
+		result, err := r.Call(name, jsonArgs)
+		if err != nil {
+			errCh <- err
+		} else {
+			out <- result
+		}
+	}()
+	return out, errCh
+}
+
 func (r *Registry) List() []string {
 	return toolNames(r.tools)
+}
+
+// Async List
+func (r *Registry) AList(ctx context.Context) <-chan []string {
+	out := make(chan []string, 1)
+	go func() {
+		defer close(out)
+		out <- r.List()
+	}()
+	return out
 }
 
 func toolNames(m map[string]*Tool) []string {
@@ -81,6 +139,16 @@ func toolNames(m map[string]*Tool) []string {
 
 func (r *Registry) ListTools() []*Tool {
 	return toolPointers(r.tools)
+}
+
+// Async ListTools
+func (r *Registry) AListTools(ctx context.Context) <-chan []*Tool {
+	out := make(chan []*Tool, 1)
+	go func() {
+		defer close(out)
+		out <- r.ListTools()
+	}()
+	return out
 }
 
 func toolPointers(m map[string]*Tool) []*Tool {
@@ -97,6 +165,20 @@ func (r *Registry) PrintAllDescs() {
 	}
 }
 
+// Async PrintAllDescs (returns descriptions)
+func (r *Registry) APrintAllDescs(ctx context.Context) <-chan []string {
+	out := make(chan []string, 1)
+	go func() {
+		defer close(out)
+		descs := []string{}
+		for _, tool := range r.ListTools() {
+			descs = append(descs, tool.Describe())
+		}
+		out <- descs
+	}()
+	return out
+}
+
 func (r *Registry) GetByCategory(category string) []*Tool {
 	var matches []*Tool
 	for _, tool := range r.tools {
@@ -105,6 +187,16 @@ func (r *Registry) GetByCategory(category string) []*Tool {
 		}
 	}
 	return matches
+}
+
+// Async GetByCategory
+func (r *Registry) AGetByCategory(ctx context.Context, category string) <-chan []*Tool {
+	out := make(chan []*Tool, 1)
+	go func() {
+		defer close(out)
+		out <- r.GetByCategory(category)
+	}()
+	return out
 }
 
 // Stats reports an overview of registry contents for analytics/user feedback.
@@ -135,4 +227,14 @@ func (r *Registry) Stats() RegistryStruct {
 		HasDups:     false, // Registry does not allow dups, always false.
 		HasCategory: hasCategory,
 	}
+}
+
+// Async Stats
+func (r *Registry) AStats(ctx context.Context) <-chan RegistryStruct {
+	out := make(chan RegistryStruct, 1)
+	go func() {
+		defer close(out)
+		out <- r.Stats()
+	}()
+	return out
 }

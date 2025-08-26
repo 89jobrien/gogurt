@@ -25,6 +25,7 @@ func New(embedder embeddings.Embedder) vectorstores.VectorStore {
 	return &Store{embedder: embedder}
 }
 
+
 func (s *Store) AddDocuments(ctx context.Context, docs []types.Document) error {
 	if len(docs) == 0 {
 		return nil
@@ -38,12 +39,20 @@ func (s *Store) AddDocuments(ctx context.Context, docs []types.Document) error {
 	return nil
 }
 
+func (s *Store) AAddDocuments(ctx context.Context, docs []types.Document) <-chan error {
+	errCh := make(chan error, 1)
+	go func() {
+		defer close(errCh)
+		errCh <- s.AddDocuments(ctx, docs)
+	}()
+	return errCh
+}
+
 func (s *Store) SimilaritySearch(ctx context.Context, query string, k int) ([]types.Document, error) {
 	queryVector, err := s.embedder.EmbedQuery(ctx, query)
 	if err != nil {
 		return nil, err
 	}
-
 	var results []searchResult
 	for i, vector := range s.vectors {
 		similarity := cosineSimilarity(queryVector, vector)
@@ -52,18 +61,31 @@ func (s *Store) SimilaritySearch(ctx context.Context, query string, k int) ([]ty
 			similarity: similarity,
 		})
 	}
-
 	sort.Slice(results, func(i, j int) bool {
 		return results[i].similarity > results[j].similarity
 	})
-
 	topK := min(len(results), k)
-
 	var documents []types.Document
 	for i := range topK {
 		documents = append(documents, results[i].document)
 	}
 	return documents, nil
+}
+
+func (s *Store) ASimilaritySearch(ctx context.Context, query string, k int) (<-chan []types.Document, <-chan error) {
+	out := make(chan []types.Document, 1)
+	errCh := make(chan error, 1)
+	go func() {
+		defer close(out)
+		defer close(errCh)
+		docs, err := s.SimilaritySearch(ctx, query, k)
+		if err != nil {
+			errCh <- err
+			return
+		}
+		out <- docs
+	}()
+	return out, errCh
 }
 
 func cosineSimilarity(a, b []float32) float64 {
@@ -78,4 +100,11 @@ func cosineSimilarity(a, b []float32) float64 {
 		return 0.0
 	}
 	return dotProduct / (math.Sqrt(normA) * math.Sqrt(normB))
+}
+
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }

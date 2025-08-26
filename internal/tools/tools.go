@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"reflect"
@@ -60,6 +61,29 @@ func New(name string, f any, description string) (*Tool, error) {
 		Func:        val,
 		InputSchema: inputSchema,
 	}, nil
+}
+
+func (t *Tool) AsyncCall(ctx context.Context, jsonArgs string) (<-chan any, <-chan error) {
+	resultCh := make(chan any, 1)
+	errorCh := make(chan error, 1)
+	go func() {
+		defer close(resultCh)
+		defer close(errorCh)
+
+		inputType := t.Func.Type().In(0)
+		inputValue := reflect.New(inputType).Interface()
+		if err := json.Unmarshal([]byte(jsonArgs), &inputValue); err != nil {
+			errorCh <- fmt.Errorf("error unmarshaling arguments: %w", err)
+			return
+		}
+		results := t.Func.Call([]reflect.Value{reflect.ValueOf(inputValue).Elem()})
+		if !results[1].IsNil() {
+			errorCh <- results[1].Interface().(error)
+			return
+		}
+		resultCh <- results[0].Interface()
+	}()
+	return resultCh, errorCh
 }
 
 // Call executes the tool with the given JSON arguments.

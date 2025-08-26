@@ -14,7 +14,6 @@ func (a *ResearchAgent) Init(ctx context.Context, config types.AgentConfig) erro
 	return nil
 }
 
-
 func (a *ResearchAgent) Invoke(ctx context.Context, input any) (any, error) {
 	// Run web search, etc
 	return "web search result", nil

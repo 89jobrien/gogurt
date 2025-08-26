@@ -47,9 +47,8 @@ func Serve() {
 			http.Error(w, "Bad request", http.StatusBadRequest)
 			return
 		}
-		// Call the tool with provided arguments (as JSON)
 		result, err := registry.Call(req.Name, string(req.Args))
-		resp := map[string]interface{}{"result": result, "error": ""}
+		resp := map[string]any{"result": result, "error": ""}
 		if err != nil {
 			resp["error"] = err.Error()
 		}

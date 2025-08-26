@@ -3,13 +3,12 @@ package openai
 import (
 	"context"
 	"fmt"
-	"io"
-	"os"
-	"strings"
-
 	"gogurt/internal/config"
 	"gogurt/internal/llm"
 	"gogurt/internal/types"
+	"io"
+	"os"
+	"strings"
 
 	"github.com/sashabaranov/go-openai"
 )
@@ -29,12 +28,11 @@ func New(cfg *config.Config) (llm.LLM, error) {
 	if apiKey == "" {
 		return nil, fmt.Errorf("openai api key not provided (config.OpenAIAPIKey or OPENAI_API_KEY)")
 	}
-
 	client := openai.NewClient(apiKey)
 	return &OpenAI{client: client}, nil
 }
 
-// generates a response from the OpenAI API.
+// Generate generates a response from the OpenAI API.
 func (o *OpenAI) Generate(ctx context.Context, messages []types.ChatMessage) (*types.ChatMessage, error) {
 	apiMessages := make([]openai.ChatCompletionMessage, len(messages))
 	for i, msg := range messages {
@@ -43,24 +41,38 @@ func (o *OpenAI) Generate(ctx context.Context, messages []types.ChatMessage) (*t
 			Content: msg.Content,
 		}
 	}
-
 	resp, err := o.client.CreateChatCompletion(ctx, openai.ChatCompletionRequest{
-		Model:    openai.GPT4o,
+		Model:   openai.GPT4o,
 		Messages: apiMessages,
 	})
 	if err != nil {
 		return nil, err
 	}
-
 	if len(resp.Choices) == 0 {
 		return nil, fmt.Errorf("no choices returned from OpenAI")
 	}
-
 	responseMessage := resp.Choices[0].Message
 	return &types.ChatMessage{
 		Role:    types.Role(responseMessage.Role),
 		Content: responseMessage.Content,
 	}, nil
+}
+
+// AGenerate provides an asynchronous Generate.
+func (o *OpenAI) AGenerate(ctx context.Context, messages []types.ChatMessage) (<-chan *types.ChatMessage, <-chan error) {
+	msgCh := make(chan *types.ChatMessage, 1)
+	errCh := make(chan error, 1)
+	go func() {
+		defer close(msgCh)
+		defer close(errCh)
+		msg, err := o.Generate(ctx, messages)
+		if err != nil {
+			errCh <- err
+			return
+		}
+		msgCh <- msg
+	}()
+	return msgCh, errCh
 }
 
 // Stream streams the model output. onToken is called for each streamed chunk.
@@ -72,21 +84,17 @@ func (o *OpenAI) Stream(ctx context.Context, messages []types.ChatMessage, onTok
 			Content: msg.Content,
 		}
 	}
-
 	req := openai.ChatCompletionRequest{
-		Model:    openai.GPT4o,
+		Model:   openai.GPT4o,
 		Messages: apiMessages,
 	}
-
 	stream, err := o.client.CreateChatCompletionStream(ctx, req)
 	if err != nil {
 		return nil, err
 	}
 	defer stream.Close()
-
 	var responseContent strings.Builder
 	var responseRole types.Role
-
 	for {
 		part, err := stream.Recv()
 		if err == io.EOF {
@@ -95,7 +103,6 @@ func (o *OpenAI) Stream(ctx context.Context, messages []types.ChatMessage, onTok
 		if err != nil {
 			return nil, err
 		}
-
 		for _, choice := range part.Choices {
 			if responseRole == "" && choice.Delta.Role != "" {
 				responseRole = types.Role(choice.Delta.Role)
@@ -109,19 +116,34 @@ func (o *OpenAI) Stream(ctx context.Context, messages []types.ChatMessage, onTok
 			}
 		}
 	}
-
 	if responseRole == "" {
 		responseRole = types.RoleAssistant
 	}
-
 	return &types.ChatMessage{
 		Role:    responseRole,
 		Content: responseContent.String(),
 	}, nil
 }
 
+// AStream provides an asynchronous streaming interface returning tokens.
+func (o *OpenAI) AStream(ctx context.Context, messages []types.ChatMessage) (<-chan string, <-chan error) {
+	tokenCh := make(chan string)
+	errCh := make(chan error, 1)
+	go func() {
+		defer close(tokenCh)
+		defer close(errCh)
+		_, err := o.Stream(ctx, messages, func(token string) error {
+			tokenCh <- token
+			return nil
+		})
+		if err != nil {
+			errCh <- err
+		}
+	}()
+	return tokenCh, errCh
+}
+
 func (o *OpenAI) HealthCheck(ctx context.Context) error {
-	// Simple completion with small dummy prompt, expect nil error on healthy.
 	_, err := o.Generate(ctx, []types.ChatMessage{{Role: "system", Content: "ping"}})
 	return err
 }

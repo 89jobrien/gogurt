@@ -57,4 +57,3 @@ type PipelineStep func(context.Context, any) (any, error)
 type NextStep func(context.Context, any) (*AgentCallResult, error)
 
 type EndStep func(context.Context, any) (*AgentCallResult, error)
-
