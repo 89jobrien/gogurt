@@ -1,7 +1,7 @@
 package config
 
 import (
-	"log"
+	"gogurt/internal/logger"
 	"os"
 	"strconv"
 
@@ -32,12 +32,12 @@ type Config struct {
 
 func Load() *Config {
 	if err := godotenv.Load(); err != nil {
-		log.Println("No .env file found")
+		logger.Error("No .env file found")
 	}
 	maxIterStr := getEnv("AGENT_MAX_ITERATIONS", "10")
 	maxIter, err := strconv.Atoi(maxIterStr)
 	if err != nil {
-		log.Printf("Invalid AGENT_MAX_ITERATIONS: %v; using default 10.", err)
+		logger.Error("Invalid AGENT_MAX_ITERATIONS: %v; using default 10.", err)
 		maxIter = 10
 	}
 	efConstruction, _ := strconv.Atoi(getEnv("CHROMA_EF_CONSTRUCTION", "100"))

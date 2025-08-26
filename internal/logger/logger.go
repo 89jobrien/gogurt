@@ -28,17 +28,17 @@ const (
 )
 
 // RuntimeInfo holds details about the application's runtime environment.
-type RuntimeInfo struct {
-	GoVersion string `json:"go"`
-	OS        string `json:"os"`
-	Arch      string `json:"arch"`
-}
+// type RuntimeInfo struct {
+// 	GoVersion string `json:"go"`
+// 	OS        string `json:"os"`
+// 	Arch      string `json:"arch"`
+// }
 
 // LogEntry represents a structured log entry for the log file.
 type LogEntry struct {
 	Timestamp string         `json:"timestamp"`
 	Level     string         `json:"level"`
-	Runtime   RuntimeInfo    `json:"runtime"`
+	// Runtime   RuntimeInfo    `json:"runtime"`
 	Caller    string         `json:"caller,omitempty"`
 	Message   string         `json:"message"`
 	Fields    map[string]any `json:"fields,omitempty"`
@@ -72,7 +72,7 @@ var defaultLogger *Logger
 // Init initializes the default logger with a metrics service and format configs.
 func Init(consoleFormat, fileFormat types.LogFormat) {
 	logDir := "logs"
-	logPath := logDir + "/godash.log"
+	logPath := logDir + "/gogurt.log"
 	if err := os.MkdirAll(logDir, 0755); err != nil {
 		log.Fatalf("Failed to create logs directory: %v", err)
 	}
@@ -103,7 +103,7 @@ func getCallerInfo() string {
 	}
 
 	modulePath := file
-	if idx := strings.LastIndex(file, "godash/"); idx != -1 {
+	if idx := strings.LastIndex(file, "gogurt/"); idx != -1 {
 		modulePath = file[idx:]
 	}
 
@@ -122,6 +122,7 @@ func LogWithContext(ctx context.Context, level Level, message string, fields map
 }
 
 // logStructured constructs the log entry and writes it to the console and file.
+// Replace the log file writing section of logStructured
 func logStructured(l *Logger, level Level, message string, fields map[string]any, traceID string, caller string) {
 	if level >= ERROR {
 		log.Println(message)
@@ -129,15 +130,10 @@ func logStructured(l *Logger, level Level, message string, fields map[string]any
 	entry := LogEntry{
 		Timestamp: time.Now().Format(time.RFC3339),
 		Level:     level.String(),
-		Runtime: RuntimeInfo{
-			GoVersion: runtime.Version(),
-			OS:        runtime.GOOS,
-			Arch:      runtime.GOARCH,
-		},
-		Caller:  caller,
-		Message: message,
-		Fields:  fields,
-		TraceID: traceID,
+		Caller:    caller,
+		Message:   message,
+		Fields:    fields,
+		TraceID:   traceID,
 	}
 
 	if l.consoleFormat == types.FormatJSON {
@@ -152,9 +148,11 @@ func logStructured(l *Logger, level Level, message string, fields map[string]any
 	if l.fileFormat == types.FormatJSON {
 		jsonData, err := json.Marshal(entry)
 		if err == nil {
+			// REMOVE ALL DASHES or extra line formatting here. Just print single-line JSON.
 			fmt.Fprintln(l.fileWriter, string(jsonData))
 		}
 	} else {
+		// ONE-LINER: REMOVE DASHES, LOG FULL ENTRY ON ONE LINE
 		fmt.Fprintln(l.fileWriter, entry.String())
 	}
 
@@ -210,3 +208,59 @@ func GetLogger() *Logger {
 	return loggerInstance
 }
 
+// Convenience logging functions with formatting --------------------------------
+
+// Info logs a message at INFO level, with optional formatting arguments.
+func Info(format string, args ...any) {
+	Log(INFO, fmt.Sprintf(format, args...))
+}
+
+// Warn logs a message at WARNING level, with optional formatting arguments.
+func Warn(format string, args ...any) {
+	Log(WARNING, fmt.Sprintf(format, args...))
+}
+
+// Error logs a message at ERROR level, with optional formatting arguments.
+func Error(format string, args ...any) {
+	Log(ERROR, fmt.Sprintf(format, args...))
+}
+
+// Fatal logs a message at FATAL level, with optional formatting arguments and then exits.
+func Fatal(format string, args ...any) {
+	Log(FATAL, fmt.Sprintf(format, args...))
+}
+
+// Context-aware convenience logging -------------------------------------------
+
+// InfoWithContext logs a message at INFO level with context and formatting.
+func InfoCtx(ctx context.Context, format string, args ...any) {
+	LogWithContext(ctx, INFO, fmt.Sprintf(format, args...), nil)
+}
+
+// WarnWithContext logs a message at WARNING level with context and formatting.
+func WarnCtx(ctx context.Context, format string, args ...any) {
+	LogWithContext(ctx, WARNING, fmt.Sprintf(format, args...), nil)
+}
+
+// ErrorWithContext logs a message at ERROR level with context and formatting.
+func ErrorCtx(ctx context.Context, format string, args ...any) {
+	LogWithContext(ctx, ERROR, fmt.Sprintf(format, args...), nil)
+}
+
+// FatalWithContext logs a message at FATAL level with context and formatting and then exits.
+func FatalCtx(ctx context.Context, format string, args ...any) {
+	LogWithContext(ctx, FATAL, fmt.Sprintf(format, args...), nil)
+}
+
+// OpenLogFile is a utility to create/open a log file for writing and appending.
+func OpenLogFile(path string) (*os.File, error) {
+	if err := os.MkdirAll("logs", 0755); err != nil {
+		return nil, err
+	}
+	return os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+}
+
+// SetDefaultLogger allows you to override the package's default logger (for convenience functions).
+func SetDefaultLogger(l *Logger) {
+	defaultLogger = l
+}

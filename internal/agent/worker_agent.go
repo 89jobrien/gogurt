@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"gogurt/internal/logger"
 	"gogurt/internal/state"
 	"gogurt/internal/tools"
 	"gogurt/internal/types"
@@ -18,6 +19,7 @@ type WorkerAgent struct {
 
 // NewWorkerAgent creates a new WorkerAgent.
 func NewWorkerAgent(registry *tools.Registry) Agent {
+	logger.Info("Creating WorkerAgent:\n   Registry: %v", registry)
 	return &WorkerAgent{
 		state: state.NewMemoryState(),
 		tools: registry,
@@ -71,7 +73,9 @@ func (a *WorkerAgent) InvokeAsync(ctx context.Context, input any) (<-chan any, <
 
 // OnMessage handles agent-to-agent communication.
 func (a *WorkerAgent) OnMessage(ctx context.Context, msg *types.StateMessage) (*types.StateMessage, error) {
+	logger.Info("Received message from %s: %s", msg.Sender, msg.Message)
 	result, err := a.Invoke(ctx, msg.Message)
+	logger.Info("result: %v", result)
 	if err != nil {
 		return nil, err
 	}
@@ -81,6 +85,7 @@ func (a *WorkerAgent) OnMessage(ctx context.Context, msg *types.StateMessage) (*
 
 // OnMessageAsync is the asynchronous version of OnMessage.
 func (a *WorkerAgent) OnMessageAsync(ctx context.Context, msg *types.StateMessage) (<-chan *types.StateMessage, <-chan error) {
+	logger.Info("Received message from %s: %s", msg.Sender, msg.Message)
 	resultCh := make(chan *types.StateMessage, 1)
 	errorCh := make(chan error, 1)
 	go func() {
@@ -93,6 +98,9 @@ func (a *WorkerAgent) OnMessageAsync(ctx context.Context, msg *types.StateMessag
 		}
 		resultCh <- res
 	}()
+	logger.Info("resultCh: %v", resultCh)
+	logger.Error("errorCh: %v", errorCh)
+	logger.Info("Completed processing message from %s: %s", msg.Sender, msg.Message)
 	return resultCh, errorCh
 }
 

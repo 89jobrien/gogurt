@@ -9,6 +9,7 @@ import (
 	"gogurt/internal/llm/azure"
 	llmollama "gogurt/internal/llm/ollama"
 	"gogurt/internal/llm/openai"
+	"gogurt/internal/logger"
 	"gogurt/internal/splitters"
 	"gogurt/internal/splitters/character"
 	"gogurt/internal/splitters/markdown"
@@ -16,7 +17,6 @@ import (
 	"gogurt/internal/vectorstores"
 	"gogurt/internal/vectorstores/chroma"
 	"gogurt/internal/vectorstores/simple"
-	"log/slog"
 	"os"
 )
 
@@ -26,17 +26,17 @@ func GetLLM(cfg *config.Config) llm.LLM {
 	var err error
 	switch cfg.LLMProvider {
 	case "azure":
-		slog.Info("Using AzureOpenAI for LLM")
+		logger.Info("Using AzureOpenAI for LLM")
 		llmModel, err = azure.New(cfg)
 	case "ollama":
-		slog.Info("Using Ollama for LLM")
+		logger.Info("Using Ollama for LLM")
 		llmModel, err = llmollama.New(cfg)
 	default:
-		slog.Info("Using OpenAI for LLM")
+		logger.Info("Using OpenAI for LLM")
 		llmModel, err = openai.New(cfg)
 	}
 	if err != nil {
-		slog.Error("failed to create LLM", "error", err)
+		logger.Error("failed to create LLM: %v", err)
 		os.Exit(1)
 	}
 	return llmModel
@@ -59,13 +59,13 @@ func AGetLLM(ctx context.Context, cfg *config.Config) (<-chan llm.LLM, <-chan er
 func GetSplitter(cfg *config.Config) splitters.Splitter {
 	switch cfg.SplitterProvider {
 	case "character":
-		slog.Info("Using character text splitter")
+		logger.Info("Using character text splitter")
 		return character.New(100, 20)
 	case "markdown":
-		slog.Info("Using markdown text splitter")
+		logger.Info("Using markdown text splitter")
 		return markdown.New(512, 50)
 	default:
-		slog.Info("Using recursive text splitter")
+		logger.Info("Using recursive text splitter")
 		return recursive.New(512, 50)
 	}
 }
@@ -87,14 +87,14 @@ func GetVectorStore(cfg *config.Config, embedder embeddings.Embedder) vectorstor
 	var err error
 	switch cfg.VectorStoreProvider {
 	case "chroma":
-		slog.Info("Using Chroma vector store")
+		logger.Info("Using Chroma vector store")
 		store, err = chroma.New(cfg)
 	default:
-		slog.Info("Using in-memory vector store")
+		logger.Info("Using in-memory vector store")
 		store = simple.New(embedder)
 	}
 	if err != nil {
-		slog.Error("failed to create vector store", "error", err)
+		logger.Error("failed to create vector store: %v", err)
 		os.Exit(1)
 	}
 	return store
@@ -117,7 +117,7 @@ func AGetVectorStore(ctx context.Context, cfg *config.Config, embedder embedding
 func GetEmbedder(cfg *config.Config) embeddings.Embedder {
 	embedder, err := embollama.New(cfg)
 	if err != nil {
-		slog.Error("failed to create embedder", "error", err)
+		logger.Error("failed to create embedder: %v", err)
 		os.Exit(1)
 	}
 	return embedder

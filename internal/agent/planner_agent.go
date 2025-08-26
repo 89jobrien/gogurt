@@ -5,10 +5,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"gogurt/internal/llm"
+	"gogurt/internal/logger"
 	"gogurt/internal/state"
 	"gogurt/internal/tools"
 	"gogurt/internal/types"
-	"log/slog"
 	"strings"
 )
 
@@ -27,6 +27,7 @@ type PlannerAgent struct {
 
 // NewPlannerAgent creates a new PlannerAgent.
 func NewPlannerAgent(llm llm.LLM, registry *tools.Registry) Agent {
+	logger.Info("Creating PlannerAgent:\n    LLM: %v\n   Registry: %v", llm, registry)
 	return &PlannerAgent{
 		llm:   llm,
 		state: state.NewMemoryState(),
@@ -47,6 +48,7 @@ func (a *PlannerAgent) Invoke(ctx context.Context, input any) (any, error) {
 	if !ok {
 		return nil, fmt.Errorf("invalid input type for PlannerAgent: expected string, got %T", input)
 	}
+	logger.Info("PlannerAgent invoked with goal: %v", goal)
 
 	toolDescriptions := []string{}
 	for _, tool := range a.tools.ListTools() {
@@ -62,42 +64,47 @@ func (a *PlannerAgent) Invoke(ctx context.Context, input any) (any, error) {
 		strings.Join(toolDescriptions, "\n"),
 		goal,
 	)
-	slog.Info("Prompt: %v\nGoal: %v", prompt, goal)
 
 	messages := []types.ChatMessage{
 		{Role: types.RoleSystem, Content: "You are a planning agent that creates a sequence of tool calls to achieve a goal."},
 		{Role: types.RoleUser, Content: prompt},
 	}
+	logger.Info("Messages: %v", messages)
 
 	resp, err := a.llm.Generate(ctx, messages)
 	if err != nil {
+		logger.ErrorCtx(ctx, "Failed to generate plan: %v", err)
 		return nil, fmt.Errorf("failed to generate plan: %w", err)
 	}
 
 	if resp == nil {
+		logger.ErrorCtx(ctx, "No response from LLM")
 		return nil, fmt.Errorf("no response from LLM")
 	}
 	
-	slog.Info("Response: %v", resp.Content, resp.Role)
+	logger.InfoCtx(ctx, "LLM response: %v", resp.Content)
 
 	// Extract the JSON array from the LLM's response.
 	jsonContent := extractJSONArray(resp.Content)
 	if jsonContent == "" {
-		return nil, fmt.Errorf("no JSON array found in LLM response: %s", resp.Content)
+		logger.ErrorCtx(ctx, "No JSON array found in LLM response: %v", resp.Content)
+		return nil, fmt.Errorf("no JSON array found in LLM response: %v", resp.Content)
 	}
 
 	var plan []PlannedStep
 	if err := json.Unmarshal([]byte(jsonContent), &plan); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal plan from LLM response: %w. Response content: %s", err, jsonContent)
+		logger.ErrorCtx(ctx, "Failed to unmarshal plan from LLM response: %v. Response content: %v", err, jsonContent)
+		return nil, fmt.Errorf("failed to unmarshal plan from LLM response: %v. Response content: %v", err, jsonContent)
 	}
 
 	// Add the plan to the state.
 	err = a.state.Set("plan", plan)
 	if err != nil {
+		logger.ErrorCtx(ctx, "Failed to add plan to state: %v", err)
 		return nil, fmt.Errorf("failed to add plan to state: %w", err)
 	}
 
-	slog.Info("Plan: %v", slog.String("plan", jsonContent))
+	logger.InfoCtx(ctx, "Plan: %v", plan)
 
 	return plan, nil
 }
@@ -128,6 +135,7 @@ func (a *PlannerAgent) InvokeAsync(ctx context.Context, input any) (<-chan any, 
 		}
 		resultCh <- res
 	}()
+	logger.Info("resultCh: %v", resultCh)
 	return resultCh, errorCh
 }
 
@@ -138,11 +146,13 @@ func (a *PlannerAgent) OnMessage(ctx context.Context, msg *types.StateMessage) (
 		return nil, err
 	}
 	planBytes, _ := json.Marshal(plan)
+	logger.Info("Plan: %v", plan)
 	return NewStateMessage(types.RoleAssistant, string(planBytes)), nil
 }
 
 // OnMessageAsync is the asynchronous version of OnMessage.
 func (a *PlannerAgent) OnMessageAsync(ctx context.Context, msg *types.StateMessage) (<-chan *types.StateMessage, <-chan error) {
+	logger.Info("Received message from %s: %s", msg.Sender, msg.Message)
 	resultCh := make(chan *types.StateMessage, 1)
 	errorCh := make(chan error, 1)
 	go func() {
@@ -160,11 +170,13 @@ func (a *PlannerAgent) OnMessageAsync(ctx context.Context, msg *types.StateMessa
 
 // State returns the agent's current state.
 func (a *PlannerAgent) State() *state.AgentState {
+	logger.Info("State: %v", a.state)
 	return &a.state
 }
 
 // Describe returns a description of the agent.
 func (a *PlannerAgent) Describe() *types.AgentDescription {
+	logger.Info("PlannerAgent Describe: %v", a.state)
 	return &types.AgentDescription{
 		Name:         "PlannerAgent",
 		Capabilities: []string{"task-planning", "decomposition"},
@@ -173,6 +185,7 @@ func (a *PlannerAgent) Describe() *types.AgentDescription {
 
 func init() {
 	RegisterAgent("PlannerAgent", func() Agent {
+		logger.Info("Initializing PlannerAgent")
 		return &PlannerAgent{}
 	})
 }

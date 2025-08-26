@@ -2,7 +2,8 @@ package documentloaders
 
 import (
 	"fmt"
-	"log/slog"
+	"gogurt/internal/logger"
+
 	"os"
 	"path/filepath"
 
@@ -48,7 +49,11 @@ func loadFromFile(filePath string) ([]types.Document, error) {
 func loadFromDirectory(dirPath string) ([]types.Document, error) {
 	files, err := os.ReadDir(dirPath)
 	if err != nil {
-		return nil, fmt.Errorf("could not read directory %s: %w", dirPath, err)
+		return nil, err
+	}
+
+	if len(files) == 0 {
+		return nil, fmt.Errorf("directory %s is empty", dirPath)
 	}
 
 	var allDocs []types.Document
@@ -58,7 +63,7 @@ func loadFromDirectory(dirPath string) ([]types.Document, error) {
 			docs, err := loadFromFile(filePath)
 			if err != nil {
 				// log the error for the specific file but continue with others
-				slog.Warn("could not load file", "path", filePath, "error", err)
+				logger.Warn("Failed to load file %s: %v", filePath, err)
 				continue
 			}
 			allDocs = append(allDocs, docs...)
