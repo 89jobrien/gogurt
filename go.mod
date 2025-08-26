@@ -11,10 +11,13 @@ require (
 	github.com/amikos-tech/chroma-go v0.2.4
 	github.com/fatih/color v1.18.0
 	github.com/ledongthuc/pdf v0.0.0-20250511090121-5959a4027728
+	github.com/sap-nocops/duckduckgogo v0.0.0-20201102135645-176990152850
 	github.com/yuin/goldmark v1.7.13
 )
 
 require (
+	github.com/PuerkitoBio/goquery v1.6.0 // indirect
+	github.com/andybalholm/cascadia v1.1.0 // indirect
 	github.com/go-viper/mapstructure/v2 v2.3.0 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
@@ -22,6 +25,7 @@ require (
 	github.com/oklog/ulid v1.3.1 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/yalue/onnxruntime_go v1.19.0 // indirect
+	golang.org/x/net v0.39.0 // indirect
 )
 
 require (

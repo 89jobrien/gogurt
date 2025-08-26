@@ -7,38 +7,31 @@ import (
 	"gogurt/internal/agent"
 	"gogurt/internal/config"
 	"gogurt/internal/factories"
+	"gogurt/internal/logger"
 	"gogurt/internal/tools"
 	"gogurt/internal/tools/file_tools"
+	"gogurt/internal/tools/web"
 	"strings"
 )
 
-// WorkflowPipe orchestrates a multi-step task by first planning and then executing.
-type WorkflowPipe struct {
+// SerpApiPipe orchestrates a multi-step task by first planning and then executing.
+type SerpApiPipe struct {
 	planner agent.Agent
 	worker  agent.Agent
 }
 
-// NewWorkflowPipe creates a new WorkflowPipe.
-func NewWorkflowPipe(ctx context.Context, cfg *config.Config) (*WorkflowPipe, error) {
+// NewSerpApiPipe creates a new SerpApiPipe.
+func NewSerpApiPipe(ctx context.Context, cfg *config.Config) (*SerpApiPipe, error) {
 	llm := factories.GetLLM(cfg)
 	registry := tools.NewRegistry()
-	// Register all simple tools for the workflow
 	errs := registry.RegisterBatch([]*tools.Tool{
-		tools.UppercaseTool,
-		tools.ConcatenateTool,
-		tools.ReverseTool,
-		tools.PalindromeTool,
-		tools.AddTool,
-		tools.SubtractTool,
-		tools.MultiplyTool,
-		tools.DivideTool,
 		file_tools.ReadFileTool,
 		file_tools.WriteFileTool,
 		file_tools.ListFilesTool,
+		web.SerpAPISearchTool,
 	})
 	for _, err := range errs {
 		if err != nil {
-			// In a real application, you might want to handle this more gracefully
 			fmt.Printf("Warning: could not register tool: %v\n", err)
 		}
 	}
@@ -46,28 +39,21 @@ func NewWorkflowPipe(ctx context.Context, cfg *config.Config) (*WorkflowPipe, er
 	planner := agent.NewPlannerAgent(llm)
 	worker := agent.NewWorkerAgent(registry)
 
-	return &WorkflowPipe{
+	return &SerpApiPipe{
 		planner: planner,
 		worker:  worker,
 	}, nil
 }
 
 // Run executes the full plan-and-execute workflow.
-func (p *WorkflowPipe) Run(ctx context.Context, prompt string) (string, error) {
-	// 1. Create the prompt for the planner
+func (p *SerpApiPipe) Run(ctx context.Context, prompt string) (string, error) {
+	logger.Info("Running SerpApiPipe")
 	registry := tools.NewRegistry()
 	errs := registry.RegisterBatch([]*tools.Tool{
-		tools.UppercaseTool,
-		tools.ConcatenateTool,
-		tools.ReverseTool,
-		tools.PalindromeTool,
-		tools.AddTool,
-		tools.SubtractTool,
-		tools.MultiplyTool,
-		tools.DivideTool,
 		file_tools.ReadFileTool,
 		file_tools.WriteFileTool,
 		file_tools.ListFilesTool,
+		web.SerpAPISearchTool,
 	})
 	for _, err := range errs {
 		if err != nil {
@@ -75,7 +61,7 @@ func (p *WorkflowPipe) Run(ctx context.Context, prompt string) (string, error) {
 		}
 	}
 
-	var toolDescriptions []string
+	toolDescriptions := []string{}
 	for _, tool := range registry.ListTools() {
 		toolDescriptions = append(toolDescriptions, tool.Describe())
 	}
@@ -84,12 +70,14 @@ func (p *WorkflowPipe) Run(ctx context.Context, prompt string) (string, error) {
 		"Based on the user's goal, create a plan consisting of a sequence of tool calls. "+
 			"Here are the available tools:\n\n%s\n\n"+
 			"Goal: %s\n\n"+
+			"Important: The 'serpapi_search' tool directly returns the search results. No further steps are needed to read or process this output. "+
 			"Return ONLY a valid, flat JSON array of objects, where each object has a 'tool' and 'args' key. "+
 			"Do not include any comments or nested arrays. For example: "+
-			"[{\"tool\": \"duckduckgo_search\", \"args\": {\"query\": \"What is the capital of New Jersey?\", \"num_results\": 3}}]",
+			"[{\"tool\": \"serpapi_search\", \"args\": {\"query\": \"What is the capital of New Jersey?\", \"num_results\": 3}}]",
 		strings.Join(toolDescriptions, "\n"),
 		prompt,
 	)
+
 
 	// 2. Plan the steps
 	planResult, err := p.planner.Invoke(ctx, plannerPrompt)
@@ -106,6 +94,7 @@ func (p *WorkflowPipe) Run(ctx context.Context, prompt string) (string, error) {
 		return "No plan was generated to achieve the goal.", nil
 	}
 
+	logger.Info("Plan: %v", plan)
 	// 3. Execute the steps sequentially
 	var lastResult any
 
@@ -124,11 +113,12 @@ func (p *WorkflowPipe) Run(ctx context.Context, prompt string) (string, error) {
 		lastResult = result
 	}
 
+	logger.Info("Result: %v", lastResult)
 	return fmt.Sprintf("%v", lastResult), nil
 }
 
 // ARun is the asynchronous version of Run.
-func (p *WorkflowPipe) ARun(ctx context.Context, prompt string) (<-chan string, <-chan error) {
+func (p *SerpApiPipe) ARun(ctx context.Context, prompt string) (<-chan string, <-chan error) {
 	resultCh := make(chan string, 1)
 	errorCh := make(chan error, 1)
 	go func() {

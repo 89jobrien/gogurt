@@ -19,7 +19,8 @@ type WorkerAgent struct {
 
 // NewWorkerAgent creates a new WorkerAgent.
 func NewWorkerAgent(registry *tools.Registry) Agent {
-	logger.Info("Creating WorkerAgent:\n   Registry: %v", registry)
+	logger.Info("Creating WorkerAgent")
+	logger.Info("Registry: %v", registry)
 	return &WorkerAgent{
 		state: state.NewMemoryState(),
 		tools: registry,

@@ -5,13 +5,24 @@ import (
 	"net/http"
 )
 
-func RegisterRoutes(mux *http.ServeMux) {
-	mux.HandleFunc("/tool", handlers.ToolHandler)
-	mux.HandleFunc("/health", handlers.HealthHandler)
-	mux.HandleFunc("/status", handlers.StatusHandler)
-	mux.HandleFunc("/ping", handlers.PingHandler)
-	mux.HandleFunc("/metrics", handlers.MetricsHandler)
-	mux.HandleFunc("/version", handlers.VersionHandler)
-	mux.HandleFunc("/docs", handlers.DocsHandler)
-	mux.HandleFunc("/workflow", handlers.WorkflowHandler)
+func RegisterRoutes(mux *http.ServeMux) []string {
+	routes := map[string]http.HandlerFunc{
+		"/tool":    handlers.ToolHandler,
+		"/health":  handlers.HealthHandler,
+		"/status":  handlers.StatusHandler,
+		"/ping":    handlers.PingHandler,
+		"/metrics": handlers.MetricsHandler,
+		"/version": handlers.VersionHandler,
+		"/docs":    handlers.DocsHandler,
+		"/workflow":handlers.WorkflowHandler,
+		"/ddgs":    handlers.DDGSHandler,
+		"/serpapi":    handlers.SerpApiHandler,
+	}
+	var routePaths []string
+	for path, handler := range routes {
+		mux.HandleFunc(path, handler)
+		routePaths = append(routePaths, path)
+	}
+
+	return routePaths
 }
