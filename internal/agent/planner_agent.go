@@ -58,7 +58,7 @@ func (a *PlannerAgent) Invoke(ctx context.Context, input any) (any, error) {
 			"Here are the available tools:\n\n%s\n\n"+
 			"Goal: %s\n\n"+
 			"Return ONLY the plan as a JSON array of objects, where each object has a 'tool' and 'args' key. "+
-			"For example: [{\"tool\": \"uppercase\", \"args\": {\"Text\": \"gogurt\"}}]",
+			"For example: [{\"tool\": \"read_file\", \"args\": {\"Filename\": \"example.txt\"}}]",
 		strings.Join(toolDescriptions, "\n"),
 		goal,
 	)

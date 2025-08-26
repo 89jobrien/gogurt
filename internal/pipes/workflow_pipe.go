@@ -8,6 +8,7 @@ import (
 	"gogurt/internal/config"
 	"gogurt/internal/factories"
 	"gogurt/internal/tools"
+	"gogurt/internal/tools/file_tools"
 )
 
 // WorkflowPipe orchestrates a multi-step task by first planning and then executing.
@@ -20,20 +21,13 @@ type WorkflowPipe struct {
 func NewWorkflowPipe(ctx context.Context, cfg *config.Config) (*WorkflowPipe, error) {
 	llm := factories.GetLLM(cfg)
 	registry := tools.NewRegistry()
-	// Register all simple tools for the workflow
 	errs := registry.RegisterBatch([]*tools.Tool{
-		tools.UppercaseTool,
-		tools.ConcatenateTool,
-		tools.ReverseTool,
-		tools.PalindromeTool,
-		tools.AddTool,
-		tools.SubtractTool,
-		tools.MultiplyTool,
-		tools.DivideTool,
+		file_tools.ReadFileTool,
+		file_tools.WriteFileTool,
+		file_tools.ListFilesTool,
 	})
 	for _, err := range errs {
 		if err != nil {
-			// In a real application, you might want to handle this more gracefully
 			fmt.Printf("Warning: could not register tool: %v\n", err)
 		}
 	}
