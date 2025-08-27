@@ -15,7 +15,6 @@ require (
 	github.com/sap-nocops/duckduckgogo v0.0.0-20201102135645-176990152850
 	github.com/serpapi/google-search-results-golang v0.0.0-20240325113416-ec93f510648e
 	github.com/yuin/goldmark v1.7.13
-	golang.org/x/net v0.39.0
 )
 
 require (
@@ -31,6 +30,7 @@ require (
 	github.com/oklog/ulid v1.3.1 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/yalue/onnxruntime_go v1.19.0 // indirect
+	golang.org/x/net v0.39.0 // indirect
 )
 
 require (
