@@ -27,7 +27,19 @@ func Serve() {
 	)
 
 	logger.SetDefaultLogger(log)
+	
+	socketServer := NewSocketIOServer()
+	go func() {
+		if err := socketServer.Serve(); err != nil {
+			logger.Fatal("Socket.IO listen error: %s\n", err)
+		}
+	}()
+	defer socketServer.Close()
+
 	mux := http.NewServeMux()
+
+	mux.Handle("/socket.io/", socketServer)
+
 	registeredRoutes := RegisterRoutes(mux)
 	sort.Strings(registeredRoutes)
 
