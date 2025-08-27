@@ -18,11 +18,11 @@ import (
 	"strings"
 )
 
-// SerpApiPipe orchestrates a multi-step task by first planning and then executing.
+// SerpApiPipe orchestrates a multi-step task by first planning, then executing, and finally synthesizing a result.
 type SerpApiPipe struct {
 	planner agent.Agent
 	worker  agent.Agent
-	llm     llm.LLM // Added the LLM for the synthesis step
+	llm     llm.LLM
 }
 
 // NewSerpApiPipe creates a new SerpApiPipe.
@@ -46,129 +46,131 @@ func NewSerpApiPipe(ctx context.Context, cfg *config.Config) (*SerpApiPipe, erro
 	return &SerpApiPipe{
 		planner: planner,
 		worker:  worker,
-		llm:     llm, // Populate the new llm field
+		llm:     llm,
 	}, nil
 }
 
-// Run executes the full plan-and-execute workflow.
-func (p *SerpApiPipe) Run(ctx context.Context, prompt string) (string, error) {
-	logger.Info("Running SerpApiPipe")
-	registry := tools.NewRegistry()
-	errs := registry.RegisterBatch([]*tools.Tool{
-		stateful.ReadScratchpadTool,
-		stateful.SaveToScratchpadTool,
-		web.SerpAPISearchTool,
-	})
-	for _, err := range errs {
-		if err != nil {
-			fmt.Printf("Warning: could not register tool: %v\n", err)
-		}
-	}
-
-	toolDescriptions := []string{}
-	for _, tool := range registry.ListTools() {
-		toolDescriptions = append(toolDescriptions, tool.Describe())
-	}
-
-	// Use the correct, updated prompt template
-	tmpl, err := prompts.NewPromptTemplate(planner.SerpApiPlannerPrompt)
-	if err != nil {
-		logger.Error("Failed to create planner prompt template: %v", err)
-		return "", fmt.Errorf("failed to create planner prompt template: %w", err)
-	}
-
-	plannerPrompt, err := tmpl.Format(map[string]string{
-		"tool_descriptions": strings.Join(toolDescriptions, "\n"),
-		"goal":              prompt,
-	})
-	if err != nil {
-		logger.Error("Failed to format planner prompt: %v", err)
-		return "", fmt.Errorf("failed to format planner prompt: %w", err)
-	}
-
-	// 2. Plan the steps
-	planResult, err := p.planner.Invoke(ctx, plannerPrompt)
-	if err != nil {
-		logger.Error("Planning phase failed: %v", err)
-		return "", fmt.Errorf("planning phase failed: %w", err)
-	}
-
-	plan, ok := planResult.([]agent.PlannedStep)
-	if !ok {
-		logger.Error("Planner returned invalid type: expected []agent.PlannedStep, got %T", planResult)
-		return "", fmt.Errorf("planner returned invalid type: expected []agent.PlannedStep, got %T", planResult)
-	}
-
-	if len(plan) == 0 {
-		logger.Info("No plan was generated to achieve the goal.")
-		return "No plan was generated to achieve the goal.", nil
-	}
-
-	logger.Info("Plan: %v", plan)
-	// 3. Execute the steps sequentially
-	var lastResult any
-
-	for i, step := range plan {
-		argsJSON, err := json.Marshal(step.Args)
-		if err != nil {
-			logger.Error("Failed to marshal args for step %d: %v", i+1, err)
-			return "", fmt.Errorf("failed to marshal args for step %d: %w", i+1, err)
-		}
-
-		logger.Info("Executing step %d ('%s') with args: %s", i+1, step.Tool, string(argsJSON))
-		task := fmt.Sprintf("%s:%s", step.Tool, string(argsJSON))
-
-		result, err := p.worker.Invoke(ctx, task)
-		if err != nil {
-			logger.Error("Execution of step %d ('%s') failed: %v", i+1, step.Tool, err)
-			return "", fmt.Errorf("execution of step %d ('%s') failed: %w", i+1, step.Tool, err)
-		}
-		lastResult = result
-	}
-
-	// 4. NEW: Synthesize the final answer
-	logger.Info("Synthesizing final answer from tool results.")
-	synthesisPrompt := fmt.Sprintf(
-		"Based on the following information, please provide a direct answer to the user's original question.\n\n"+
-			"Information:\n%v\n\n"+
-			"Original Question: %s",
-		lastResult,
-		prompt,
-	)
-
-	synthesisMessages := []types.ChatMessage{
-		{Role: types.RoleSystem, Content: "You are a helpful assistant that answers questions based on provided context."},
-		{Role: types.RoleUser, Content: synthesisPrompt},
-	}
-
-	finalAnswer, err := p.llm.Generate(ctx, synthesisMessages)
-	if err != nil {
-		logger.Error("Final answer synthesis failed: %v", err)
-		return "", fmt.Errorf("final answer synthesis failed: %w", err)
-	}
-
-	if finalAnswer == nil {
-		logger.Error("LLM returned a nil response for synthesis")
-		return "", fmt.Errorf("no response from LLM for synthesis")
-	}
-
-	logger.Info("Result: %v", finalAnswer.Content)
-	return finalAnswer.Content, nil
-}
-
-// ARun is the asynchronous version of Run.
-func (p *SerpApiPipe) ARun(ctx context.Context, prompt string) (<-chan string, <-chan error) {
+// Run executes the full plan-and-execute workflow asynchronously.
+func (p *SerpApiPipe) Run(ctx context.Context, prompt string) (<-chan string, <-chan error) {
 	resultCh := make(chan string, 1)
 	errorCh := make(chan error, 1)
+
 	go func() {
 		defer close(resultCh)
 		defer close(errorCh)
-		res, err := p.Run(ctx, prompt)
+
+		logger.Info("Running SerpApiPipe")
+		// 1. Set up prompt for the planner
+		registry := tools.NewRegistry()
+		registry.RegisterBatch([]*tools.Tool{
+			stateful.ReadScratchpadTool,
+			stateful.SaveToScratchpadTool,
+			web.SerpAPISearchTool,
+		})
+
+		var toolDescriptions []string
+		for _, tool := range registry.ListTools() {
+			toolDescriptions = append(toolDescriptions, tool.Describe())
+		}
+
+		tmpl, err := prompts.NewPromptTemplate(planner.SerpApiPlannerPrompt)
 		if err != nil {
-			errorCh <- err
+			errorCh <- fmt.Errorf("failed to create planner prompt template: %w", err)
 			return
 		}
-		resultCh <- res
+
+		plannerPrompt, err := tmpl.Format(map[string]string{
+			"tool_descriptions": strings.Join(toolDescriptions, "\n"),
+			"goal":              prompt,
+		})
+		if err != nil {
+			errorCh <- fmt.Errorf("failed to format planner prompt: %w", err)
+			return
+		}
+
+		// 2. Plan the steps asynchronously
+		planResultCh, planErrCh := p.planner.Invoke(ctx, plannerPrompt)
+		var plan []agent.PlannedStep
+		select {
+		case planResult := <-planResultCh:
+			var ok bool
+			plan, ok = planResult.([]agent.PlannedStep)
+			if !ok {
+				errorCh <- fmt.Errorf("planner returned invalid type: expected []agent.PlannedStep, got %T", planResult)
+				return
+			}
+		case err := <-planErrCh:
+			errorCh <- fmt.Errorf("planning phase failed: %w", err)
+			return
+		case <-ctx.Done():
+			errorCh <- ctx.Err()
+			return
+		}
+
+		if len(plan) == 0 {
+			logger.Info("No plan was generated to achieve the goal.")
+			resultCh <- "No plan was generated to achieve the goal."
+			return
+		}
+		logger.Info("Plan: %v", plan)
+
+		// 3. Execute the steps sequentially
+		var lastResult any
+		for i, step := range plan {
+			argsJSON, err := json.Marshal(step.Args)
+			if err != nil {
+				errorCh <- fmt.Errorf("failed to marshal args for step %d: %w", i+1, err)
+				return
+			}
+
+			logger.Info("Executing step %d ('%s') with args: %s", i+1, step.Tool, string(argsJSON))
+			task := fmt.Sprintf("%s:%s", step.Tool, string(argsJSON))
+			workerResultCh, workerErrCh := p.worker.Invoke(ctx, task)
+
+			select {
+			case result := <-workerResultCh:
+				lastResult = result
+			case err := <-workerErrCh:
+				errorCh <- fmt.Errorf("execution of step %d ('%s') failed: %w", i+1, step.Tool, err)
+				return
+			case <-ctx.Done():
+				errorCh <- ctx.Err()
+				return
+			}
+		}
+
+		// 4. Synthesize the final answer asynchronously
+		logger.Info("Synthesizing final answer from tool results.")
+		synthesisPrompt := fmt.Sprintf(
+			"Based on the following information, please provide a direct answer to the user's original question.\n\n"+
+				"Information:\n%v\n\n"+
+				"Original Question: %s",
+			lastResult,
+			prompt,
+		)
+
+		synthesisMessages := []types.ChatMessage{
+			{Role: types.RoleSystem, Content: "You are a helpful assistant that answers questions based on provided context."},
+			{Role: types.RoleUser, Content: synthesisPrompt},
+		}
+
+		finalAnswerCh, synthErrCh := p.llm.AGenerate(ctx, synthesisMessages)
+		select {
+		case finalAnswer := <-finalAnswerCh:
+			if finalAnswer == nil {
+				errorCh <- fmt.Errorf("no response from LLM for synthesis")
+				return
+			}
+			logger.Info("Result: %v", finalAnswer.Content)
+			resultCh <- finalAnswer.Content
+		case err := <-synthErrCh:
+			errorCh <- fmt.Errorf("final answer synthesis failed: %w", err)
+			return
+		case <-ctx.Done():
+			errorCh <- ctx.Err()
+			return
+		}
 	}()
+
 	return resultCh, errorCh
 }

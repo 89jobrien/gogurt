@@ -32,105 +32,122 @@ func (a *WorkerAgent) Init(ctx context.Context, config types.AgentConfig) error 
 	return nil
 }
 
-// Invoke takes a tool call string and executes it.
-func (a *WorkerAgent) Invoke(ctx context.Context, input any) (any, error) {
-	task, ok := input.(string)
-	if !ok {
-		return nil, fmt.Errorf("invalid input type for WorkerAgent: expected string, got %T", input)
-	}
-	logger.InfoCtx(ctx, "WorkerAgent invoked with task: %s", task)
-
-	parts := strings.SplitN(task, ":", 2)
-	toolName := parts[0]
-	var args string
-	if len(parts) > 1 {
-		args = parts[1]
-	}
-
-	tool := a.tools.Get(toolName)
-	if tool == nil {
-		return nil, fmt.Errorf("tool '%s' not found", toolName)
-	}
-
-	// Dynamically handle stateful vs stateless tools
-	var result any
-	var err error
-	if tool.Func.Type().NumIn() == 2 {
-		// This is a stateful tool
-		result, err = a.callStatefulTool(tool, args)
-	} else {
-		// This is a stateless tool
-		result, err = tool.Call(args)
-	}
-
-	if err != nil {
-		logger.ErrorCtx(ctx, "Tool call '%s' failed: %v", toolName, err)
-		return nil, fmt.Errorf("tool call failed for '%s': %w", toolName, err)
-	}
-
-	logger.InfoCtx(ctx, "Tool '%s' executed successfully.", toolName)
-	return result, nil
-}
-
-func (a *WorkerAgent) callStatefulTool(tool *tools.Tool, jsonArgs string) (any, error) {
-	inputType := tool.Func.Type().In(0)
-	inputValue := reflect.New(inputType).Interface()
-	if err := json.Unmarshal([]byte(jsonArgs), &inputValue); err != nil {
-		return nil, fmt.Errorf("error unmarshaling arguments: %w", err)
-	}
-
-	results := tool.Func.Call([]reflect.Value{
-		reflect.ValueOf(inputValue).Elem(),
-		reflect.ValueOf(a.state),
-	})
-
-	if !results[1].IsNil() {
-		return nil, results[1].Interface().(error)
-	}
-	return results[0].Interface(), nil
-}
-
-// InvokeAsync is the asynchronous version of Invoke.
-func (a *WorkerAgent) InvokeAsync(ctx context.Context, input any) (<-chan any, <-chan error) {
+// Invoke takes a tool call string and executes it asynchronously.
+func (a *WorkerAgent) Invoke(ctx context.Context, input any) (<-chan any, <-chan error) {
 	resultCh := make(chan any, 1)
 	errorCh := make(chan error, 1)
+
 	go func() {
 		defer close(resultCh)
 		defer close(errorCh)
-		res, err := a.Invoke(ctx, input)
-		if err != nil {
+
+		task, ok := input.(string)
+		if !ok {
+			err := fmt.Errorf("invalid input type for WorkerAgent: expected string, got %T", input)
 			errorCh <- err
 			return
 		}
-		resultCh <- res
+		logger.InfoCtx(ctx, "WorkerAgent invoked with task: %s", task)
+
+		parts := strings.SplitN(task, ":", 2)
+		toolName := parts[0]
+		var args string
+		if len(parts) > 1 {
+			args = parts[1]
+		}
+
+		tool := a.tools.Get(toolName)
+		if tool == nil {
+			errorCh <- fmt.Errorf("tool '%s' not found", toolName)
+			return
+		}
+
+		// Handle stateful vs stateless tools asynchronously
+		var toolResultCh <-chan any
+		var toolErrCh <-chan error
+
+		if tool.Func.Type().NumIn() == 2 {
+			// This is a stateful tool
+			toolResultCh, toolErrCh = a.asyncCallStatefulTool(ctx, tool, args)
+		} else {
+			// This is a stateless tool
+			toolResultCh, toolErrCh = tool.AsyncCall(ctx, args)
+		}
+
+		select {
+		case result := <-toolResultCh:
+			logger.InfoCtx(ctx, "Tool '%s' executed successfully.", toolName)
+			resultCh <- result
+		case err := <-toolErrCh:
+			logger.ErrorCtx(ctx, "Tool call '%s' failed: %v", toolName, err)
+			errorCh <- fmt.Errorf("tool call failed for '%s': %w", toolName, err)
+		case <-ctx.Done():
+			errorCh <- ctx.Err()
+		}
 	}()
+
 	return resultCh, errorCh
 }
 
-// OnMessage handles agent-to-agent communication.
-func (a *WorkerAgent) OnMessage(ctx context.Context, msg *types.StateMessage) (*types.StateMessage, error) {
-	result, err := a.Invoke(ctx, msg.Message)
-	if err != nil {
-		return nil, err
-	}
-	resultBytes, _ := json.Marshal(result)
-	return NewStateMessage(types.RoleAssistant, string(resultBytes)), nil
-}
-
-// OnMessageAsync is the asynchronous version of OnMessage.
-func (a *WorkerAgent) OnMessageAsync(ctx context.Context, msg *types.StateMessage) (<-chan *types.StateMessage, <-chan error) {
-	resultCh := make(chan *types.StateMessage, 1)
+// asyncCallStatefulTool handles the execution of tools that require agent state.
+func (a *WorkerAgent) asyncCallStatefulTool(ctx context.Context, tool *tools.Tool, jsonArgs string) (<-chan any, <-chan error) {
+	resultCh := make(chan any, 1)
 	errorCh := make(chan error, 1)
+
 	go func() {
 		defer close(resultCh)
 		defer close(errorCh)
-		res, err := a.OnMessage(ctx, msg)
-		if err != nil {
-			errorCh <- err
+
+		inputType := tool.Func.Type().In(0)
+		inputValue := reflect.New(inputType).Interface()
+		if err := json.Unmarshal([]byte(jsonArgs), &inputValue); err != nil {
+			logger.ErrorCtx(ctx, "Error unmarshaling arguments: %v", err)
+			errorCh <- fmt.Errorf("error unmarshaling arguments: %w", err)
 			return
 		}
-		resultCh <- res
+
+		// The actual function call is blocking, but it's wrapped in a goroutine.
+		results := tool.Func.Call([]reflect.Value{
+			reflect.ValueOf(inputValue).Elem(),
+			reflect.ValueOf(a.state),
+		})
+
+		if !results[1].IsNil() {
+			errorCh <- results[1].Interface().(error)
+			return
+		}
+		resultCh <- results[0].Interface()
 	}()
+
+	return resultCh, errorCh
+}
+
+// OnMessage handles agent-to-agent communication asynchronously.
+func (a *WorkerAgent) OnMessage(ctx context.Context, msg *types.StateMessage) (<-chan *types.StateMessage, <-chan error) {
+	resultCh := make(chan *types.StateMessage, 1)
+	errorCh := make(chan error, 1)
+
+	go func() {
+		defer close(resultCh)
+		defer close(errorCh)
+
+		invokeResultCh, invokeErrCh := a.Invoke(ctx, msg.Message)
+
+		select {
+		case result := <-invokeResultCh:
+			resultBytes, err := json.Marshal(result)
+			if err != nil {
+				errorCh <- err
+				return
+			}
+			resultCh <- NewStateMessage(types.RoleAssistant, string(resultBytes))
+		case err := <-invokeErrCh:
+			errorCh <- err
+		case <-ctx.Done():
+			errorCh <- ctx.Err()
+		}
+	}()
+
 	return resultCh, errorCh
 }
 

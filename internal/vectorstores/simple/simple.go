@@ -20,73 +20,80 @@ type searchResult struct {
 	similarity float64
 }
 
-// creates a simple in-memory vector store.
+// New creates a simple in-memory vector store.
 func New(embedder embeddings.Embedder) vectorstores.VectorStore {
 	return &Store{embedder: embedder}
 }
 
-func (s *Store) AddDocuments(ctx context.Context, docs []types.Document) error {
-	if len(docs) == 0 {
-		return nil
-	}
-	s.documents = append(s.documents, docs...)
-	docEmbeddings, err := s.embedder.EmbedDocuments(ctx, docs)
-	if err != nil {
-		return err
-	}
-	s.vectors = append(s.vectors, docEmbeddings...)
-	return nil
-}
-
-func (s *Store) AAddDocuments(ctx context.Context, docs []types.Document) <-chan error {
+// AddDocuments adds documents to the vector store asynchronously.
+func (s *Store) AddDocuments(ctx context.Context, docs []types.Document) <-chan error {
 	errCh := make(chan error, 1)
 	go func() {
 		defer close(errCh)
-		errCh <- s.AddDocuments(ctx, docs)
+		if len(docs) == 0 {
+			errCh <- nil
+			return
+		}
+		s.documents = append(s.documents, docs...)
+		// Assuming embedder methods are async and return channels
+		docEmbeddingsCh, embedErrCh := s.embedder.AEmbedDocuments(ctx, docs)
+
+		select {
+		case docEmbeddings := <-docEmbeddingsCh:
+			s.vectors = append(s.vectors, docEmbeddings...)
+			errCh <- nil
+		case err := <-embedErrCh:
+			errCh <- err
+		case <-ctx.Done():
+			errCh <- ctx.Err()
+		}
 	}()
 	return errCh
 }
 
-func (s *Store) SimilaritySearch(ctx context.Context, query string, k int) ([]types.Document, error) {
-	queryVector, err := s.embedder.EmbedQuery(ctx, query)
-	if err != nil {
-		return nil, err
-	}
-	var results []searchResult
-	for i, vector := range s.vectors {
-		similarity := cosineSimilarity(queryVector, vector)
-		results = append(results, searchResult{
-			document:   s.documents[i],
-			similarity: similarity,
-		})
-	}
-	sort.Slice(results, func(i, j int) bool {
-		return results[i].similarity > results[j].similarity
-	})
-	topK := min(len(results), k)
-	var documents []types.Document
-	for i := range topK {
-		documents = append(documents, results[i].document)
-	}
-	return documents, nil
-}
-
-func (s *Store) ASimilaritySearch(ctx context.Context, query string, k int) (<-chan []types.Document, <-chan error) {
+// SimilaritySearch performs a similarity search asynchronously.
+func (s *Store) SimilaritySearch(ctx context.Context, query string, k int) (<-chan []types.Document, <-chan error) {
 	out := make(chan []types.Document, 1)
 	errCh := make(chan error, 1)
 	go func() {
 		defer close(out)
 		defer close(errCh)
-		docs, err := s.SimilaritySearch(ctx, query, k)
-		if err != nil {
+
+		queryVectorCh, embedErrCh := s.embedder.AEmbedQuery(ctx, query)
+		var queryVector []float32
+		select {
+		case queryVector = <-queryVectorCh:
+		case err := <-embedErrCh:
 			errCh <- err
 			return
+		case <-ctx.Done():
+			errCh <- ctx.Err()
+			return
 		}
-		out <- docs
+
+		var results []searchResult
+		for i, vector := range s.vectors {
+			similarity := cosineSimilarity(queryVector, vector)
+			results = append(results, searchResult{
+				document:   s.documents[i],
+				similarity: similarity,
+			})
+		}
+		sort.Slice(results, func(i, j int) bool {
+			return results[i].similarity > results[j].similarity
+		})
+
+		topK := min(len(results), k)
+		var documents []types.Document
+		for i := 0; i < topK; i++ {
+			documents = append(documents, results[i].document)
+		}
+		out <- documents
 	}()
 	return out, errCh
 }
 
+// cosineSimilarity is a synchronous helper function.
 func cosineSimilarity(a, b []float32) float64 {
 	var dotProduct float64
 	var normA, normB float64

@@ -5,6 +5,7 @@ import (
 	"gogurt/internal/logger"
 	"gogurt/internal/state"
 	"gogurt/internal/types"
+	"time"
 )
 
 type ResearchAgent struct {
@@ -12,63 +13,75 @@ type ResearchAgent struct {
 }
 
 func (a *ResearchAgent) Init(ctx context.Context, config types.AgentConfig) error {
-	_, _ = NewAgentGraph(ctx, config, nil)
+	// The NewAgentGraph call seems to be for initializing child agents.
+	// We'll keep it, assuming it's part of a larger design, but note that
+	// the result isn't used in this agent's current form.
+	_, err := NewAgentGraph(ctx, config, RegisteredAgents)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
-func (a *ResearchAgent) Invoke(ctx context.Context, input any) (any, error) {
-	// Run web search, etc
-	return "web search result", nil
+// Invoke is now fully asynchronous, returning channels for results and errors.
+func (a *ResearchAgent) Invoke(ctx context.Context, input any) (<-chan any, <-chan error) {
+	resultCh := make(chan any, 1)
+	errorCh := make(chan error, 1)
+
+	go func() {
+		defer close(resultCh)
+		defer close(errorCh)
+
+		// Placeholder for actual web search logic
+		// In a real implementation, you would call a search tool here.
+		logger.InfoCtx(ctx, "ResearchAgent executing web search for: %v", input)
+		time.Sleep(100 * time.Millisecond) // Simulate network latency
+
+		select {
+		case resultCh <- "web search result":
+		case <-ctx.Done():
+			errorCh <- ctx.Err()
+		}
+	}()
+
+	return resultCh, errorCh
 }
 
-
-
-func (a *ResearchAgent) InvokeAsync(ctx context.Context, input any) (<-chan any, <-chan error) {
-	// Optional
-	return nil, nil
-}
-func (a *ResearchAgent) Delegate(ctx context.Context, task any) (any, error) {
-	// Could delegate to subordinate agents
-	return nil, nil
-}
-func (a *ResearchAgent) Planner() Planner       { return nil }
+// State returns the agent's current state.
 func (a *ResearchAgent) State() *state.AgentState {
 	return &a.state
 }
-func (a *ResearchAgent) Capabilities() []string { return []string{"websearch"} }
+
+// Describe returns a description of the agent.
 func (a *ResearchAgent) Describe() *types.AgentDescription {
 	return &types.AgentDescription{
 		Name:         "ResearchAgent",
-		Capabilities: a.Capabilities(),
-		Tools:        []string{"WebSearchTool"},
+		Capabilities: []string{"web-search", "data-retrieval"},
+		Tools:        []string{"WebSearchTool"}, // Example tool
 	}
 }
 
-func (a *ResearchAgent) OnMessage(ctx context.Context, msg *types.StateMessage) (*types.StateMessage, error) {
-	logger.InfoCtx(ctx, "ResearchAgent received message from %s: %s", msg.Sender, msg.Message)
-	return &types.StateMessage{
-		Id:        "msg-websearch",
-		Sender:    types.Role("websearch"),
-		Message:   "web search result",
-		Timestamp: types.TimeStamp.Local(types.TimeStamp{}),
-		Meta:      nil,
-	}, nil
-}
+// OnMessage handles agent-to-agent communication asynchronously.
+func (a *ResearchAgent) OnMessage(ctx context.Context, msg *types.StateMessage) (<-chan *types.StateMessage, <-chan error) {
+	resultCh := make(chan *types.StateMessage, 1)
+	errorCh := make(chan error, 1)
 
-func (a *ResearchAgent) OnMessageAsync(ctx context.Context, msg *types.StateMessage) (<-chan *types.StateMessage, <-chan error) {
-	msgCh := make(chan *types.StateMessage, 1)
-	errCh := make(chan error, 1)
 	go func() {
-		defer close(msgCh)
-		defer close(errCh)
-		m, err := a.OnMessage(ctx, msg)
-		if err != nil {
-			errCh <- err
-		} else {
-			msgCh <- m
+		defer close(resultCh)
+		defer close(errorCh)
+
+		logger.InfoCtx(ctx, "ResearchAgent received message from %s: %s", msg.Sender, msg.Message)
+		// This agent's response is a simulated search result based on the incoming message.
+		responseMsg := NewStateMessage(types.Role("research_agent"), "web search result for: "+msg.Message)
+
+		select {
+		case resultCh <- responseMsg:
+		case <-ctx.Done():
+			errorCh <- ctx.Err()
 		}
 	}()
-	return msgCh, errCh
+
+	return resultCh, errorCh
 }
 
 func init() {

@@ -46,24 +46,29 @@ func SerpApiHandler(w http.ResponseWriter, r *http.Request) {
 	// Load configuration.
 	cfg := config.Load()
 
-	// Create and run the SerpApi pipe.
+	// Create the SerpApi pipe.
 	serpApiPipe, err := pipes.NewSerpApiPipe(ctx, cfg)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to create SerpApi pipe: %v", err), http.StatusInternalServerError)
 		return
 	}
 
-	result, err := serpApiPipe.Run(ctx, req.Prompt)
+	// Run the pipe asynchronously and wait for the result.
+	resultCh, errCh := serpApiPipe.Run(ctx, req.Prompt)
 
-	// Prepare the response
 	w.Header().Set("Content-Type", "application/json")
 	resp := SerpApiResponse{}
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		resp.Error = err.Error()
-	} else {
+
+	select {
+	case result := <-resultCh:
 		w.WriteHeader(http.StatusOK)
 		resp.Result = result
+	case err := <-errCh:
+		w.WriteHeader(http.StatusInternalServerError)
+		resp.Error = err.Error()
+	case <-ctx.Done():
+		w.WriteHeader(http.StatusRequestTimeout)
+		resp.Error = "Request timed out"
 	}
 
 	json.NewEncoder(w).Encode(resp)

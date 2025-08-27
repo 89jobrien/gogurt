@@ -3,10 +3,9 @@ package agent
 import (
 	"context"
 	"fmt"
-	"time"
-
 	"gogurt/internal/state"
 	"gogurt/internal/types"
+	"time"
 )
 
 // Utility: generate a new message with all fields filled
@@ -23,13 +22,11 @@ func NewStateMessage(sender types.Role, message string) *types.StateMessage {
 // Agent interface supporting both human/system and agent-to-agent communication.
 type Agent interface {
 	// Human/system interaction (CLI, API, etc.)
-	Invoke(ctx context.Context, input any) (any, error)
-	InvokeAsync(ctx context.Context, input any) (<-chan any, <-chan error)
-	
+	Invoke(ctx context.Context, input any) (<-chan any, <-chan error)
+
 	// Agent-to-agent communication (robust workflow)
-	OnMessage(ctx context.Context, msg *types.StateMessage) (*types.StateMessage, error)
-	OnMessageAsync(ctx context.Context, msg *types.StateMessage) (<-chan *types.StateMessage, <-chan error)
-	
+	OnMessage(ctx context.Context, msg *types.StateMessage) (<-chan *types.StateMessage, <-chan error)
+
 	// Returns the current agent state (may be nil/unimplemented)
 	State() *state.AgentState
 
@@ -67,60 +64,81 @@ type MultiAgentCoordinator struct {
 }
 
 // SendMessageTo sends a message to an agent and links meta information.
-func (mac *MultiAgentCoordinator) SendMessageTo(ctx context.Context, agentID string, input *types.StateMessage) (*types.StateMessage, error) {
-	agent, ok := mac.Agents[agentID]
-	if !ok {
-		return nil, &AgentError{"agent not found: " + agentID}
-	}
-	output, err := agent.OnMessage(ctx, input)
-	if err != nil {
-		return nil, err
-	}
-	// Thread history in meta
-	if output.Meta == nil {
-		output.Meta = &types.StateMessageMeta{}
-	}
-	output.Meta.Previous = input
-	output.Meta.Current = output
-	output.Meta.CurrentState = agent.State()
-	return output, nil
-}
-
-// SendMessageAsync broadcasts a message asynchronously to an agent.
-func (mac *MultiAgentCoordinator) SendMessageAsync(ctx context.Context, agentID string, input *types.StateMessage) (<-chan *types.StateMessage, <-chan error) {
+func (mac *MultiAgentCoordinator) SendMessageTo(ctx context.Context, agentID string, input *types.StateMessage) (<-chan *types.StateMessage, <-chan error) {
 	outCh := make(chan *types.StateMessage, 1)
 	errCh := make(chan error, 1)
+
 	go func() {
 		defer close(outCh)
 		defer close(errCh)
-		msg, err := mac.SendMessageTo(ctx, agentID, input)
-		if err != nil {
-			errCh <- err
+
+		agent, ok := mac.Agents[agentID]
+		if !ok {
+			errCh <- &AgentError{"agent not found: " + agentID}
 			return
 		}
-		outCh <- msg
+
+		outputCh, errChFromAgent := agent.OnMessage(ctx, input)
+		select {
+		case output := <-outputCh:
+			// Thread history in meta
+			if output.Meta == nil {
+				output.Meta = &types.StateMessageMeta{}
+			}
+			output.Meta.Previous = input
+			output.Meta.Current = output
+			output.Meta.CurrentState = agent.State()
+			outCh <- output
+		case err := <-errChFromAgent:
+			errCh <- err
+		case <-ctx.Done():
+			errCh <- ctx.Err()
+		}
 	}()
+
 	return outCh, errCh
 }
 
 // BroadcastMessage sends a message through each agent in Workflow sequentially, threading StateMessageMeta.
-func (mac *MultiAgentCoordinator) BroadcastMessage(ctx context.Context, initial *types.StateMessage) ([]*types.StateMessage, error) {
-	messages := []*types.StateMessage{}
-	curr := initial
-	for _, agentID := range mac.Workflow {
-		resp, err := mac.SendMessageTo(ctx, agentID, curr)
-		if err != nil {
-			return messages, err
+func (mac *MultiAgentCoordinator) BroadcastMessage(ctx context.Context, initial *types.StateMessage) (<-chan *types.StateMessage, <-chan error) {
+	outCh := make(chan *types.StateMessage)
+	errCh := make(chan error, 1)
+
+	go func() {
+		defer close(outCh)
+		defer close(errCh)
+
+		var finalMessages []*types.StateMessage
+		curr := initial
+
+		for _, agentID := range mac.Workflow {
+			respCh, broadcastErrCh := mac.SendMessageTo(ctx, agentID, curr)
+
+			select {
+			case resp := <-respCh:
+				if curr.Meta != nil {
+					curr.Meta.Next = resp // Link next in the chain
+				}
+				finalMessages = append(finalMessages, resp)
+				curr = resp
+			case err := <-broadcastErrCh:
+				errCh <- err
+				return
+			case <-ctx.Done():
+				errCh <- ctx.Err()
+				return
+			}
 		}
-		if curr.Meta != nil {
-			curr.Meta.Next = resp // Link next in the chain
+
+		for _, msg := range finalMessages {
+			outCh <- msg
 		}
-		messages = append(messages, resp)
-		curr = resp
-	}
-	return messages, nil
+	}()
+
+	return outCh, errCh
 }
 
 // AgentError for errors originating in agent communication.
 type AgentError struct{ msg string }
+
 func (e *AgentError) Error() string { return e.msg }

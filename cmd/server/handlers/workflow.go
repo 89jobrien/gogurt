@@ -47,24 +47,30 @@ func WorkflowHandler(w http.ResponseWriter, r *http.Request) {
 	// as a dependency into the handler instead of loading it each time.
 	cfg := config.Load()
 
-	// Create and run the workflow pipe.
+	// Create the workflow pipe.
 	workflowPipe, err := pipes.NewWorkflowPipe(ctx, cfg)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to create workflow pipe: %v", err), http.StatusInternalServerError)
 		return
 	}
 
-	result, err := workflowPipe.Run(ctx, req.Prompt)
+	// Run the pipe asynchronously and wait for the result from the channels.
+	resultCh, errCh := workflowPipe.Run(ctx, req.Prompt)
 
 	// Prepare the response
 	w.Header().Set("Content-Type", "application/json")
 	resp := WorkflowResponse{}
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		resp.Error = err.Error()
-	} else {
+
+	select {
+	case result := <-resultCh:
 		w.WriteHeader(http.StatusOK)
 		resp.Result = result
+	case err := <-errCh:
+		w.WriteHeader(http.StatusInternalServerError)
+		resp.Error = err.Error()
+	case <-ctx.Done():
+		w.WriteHeader(http.StatusRequestTimeout)
+		resp.Error = "Request timed out or was canceled."
 	}
 
 	json.NewEncoder(w).Encode(resp)
