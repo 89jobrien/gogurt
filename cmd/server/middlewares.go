@@ -3,18 +3,17 @@ package server
 import (
 	"gogurt/internal/logger"
 	"net/http"
-	"time"
 )
 
-// loggingMiddleware logs the incoming HTTP request & its duration.
-func loggingMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		start := time.Now()
-		logger.Info("Started %s %s", r.Method, r.URL.Path)
-		next.ServeHTTP(w, r)
-		logger.Info("Completed %s in %v", r.URL.Path, time.Since(start))
-	})
-}
+// // loggingMiddleware logs the incoming HTTP request & its duration.
+// func loggingMiddleware(next http.Handler) http.Handler {
+// 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+// 		start := time.Now()
+// 		logger.Info("Started %s %s", r.Method, r.URL.Path)
+// 		next.ServeHTTP(w, r)
+// 		logger.Info("Completed %s in %v", r.URL.Path, time.Since(start))
+// 	})
+// }
 
 // corsMiddleware adds CORS headers to allow cross-origin requests.
 func corsMiddleware(next http.Handler) http.Handler {
@@ -47,5 +46,6 @@ func recoveryMiddleware(next http.Handler) http.Handler {
 }
 
 func MiddlewareHandler(handler http.Handler) http.Handler {
-	return recoveryMiddleware(corsMiddleware(loggingMiddleware(handler)))
+	return recoveryMiddleware(corsMiddleware(handler))
+	// return recoveryMiddleware(corsMiddleware(loggingMiddleware(handler)))
 }

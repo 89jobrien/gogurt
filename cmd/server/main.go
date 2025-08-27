@@ -13,22 +13,37 @@ import (
 )
 
 func Serve() {
+	// Configure main logger for gogurt.log
 	logFilePath := "logs/gogurt.log"
 	logFile, err := logger.OpenLogFile(logFilePath)
 	if err != nil {
 		panic(err)
 	}
-
-	log := logger.NewLogger(
+	mainLogger := logger.NewLogger(
 		os.Stdout,
 		logFile,
 		types.FormatText,
 		types.FormatJSON,
 	)
 
-	logger.SetDefaultLogger(log)
-	
-	socketServer := NewSocketIOServer()
+	// Set the main logger as the default for convenience functions
+	logger.SetDefaultLogger(mainLogger)
+
+	// Configure a separate logger for websocket events
+	wsLogFilePath := "logs/websocket.log"
+	wsLogFile, err := logger.OpenLogFile(wsLogFilePath)
+	if err != nil {
+		panic(err)
+	}
+	websocketLogger := logger.NewLogger(
+		os.Stdout,
+		wsLogFile,
+		types.FormatText,
+		types.FormatJSON,
+	)
+
+	// Pass the dedicated websocket logger to the Socket.IO server
+	socketServer := NewSocketIOServer(websocketLogger)
 	go func() {
 		if err := socketServer.Serve(); err != nil {
 			logger.Fatal("Socket.IO listen error: %s\n", err)

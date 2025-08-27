@@ -25,7 +25,7 @@ type SocketResponse struct {
 }
 
 // NewSocketIOServer creates and configures a new Socket.IO server.
-func NewSocketIOServer() *socketio.Server {
+func NewSocketIOServer(wsLogger *logger.Logger) *socketio.Server {
 	server := socketio.NewServer(nil)
 
 	// Handles new client connections.
