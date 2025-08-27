@@ -41,8 +41,11 @@ func (a *PlannerAgent) Init(ctx context.Context, config types.AgentConfig) error
 func (a *PlannerAgent) Invoke(ctx context.Context, input any) (any, error) {
 	prompt, ok := input.(string)
 	if !ok {
+		logger.ErrorCtx(ctx, "Invalid input type for PlannerAgent: expected string, got %T", input)
 		return nil, fmt.Errorf("invalid input type for PlannerAgent: expected string, got %T", input)
 	}
+
+	logger.InfoCtx(ctx, "PlannerAgent invoked with prompt.")
 
 	messages := []types.ChatMessage{
 		{Role: types.RoleSystem, Content: "You are a planning agent that creates a sequence of tool calls to achieve a goal."},
@@ -51,24 +54,30 @@ func (a *PlannerAgent) Invoke(ctx context.Context, input any) (any, error) {
 
 	resp, err := a.llm.Generate(ctx, messages)
 	if err != nil {
+		logger.ErrorCtx(ctx, "LLM plan generation failed: %v", err)
 		return nil, fmt.Errorf("failed to generate plan: %w", err)
 	}
 
 	if resp == nil {
+		logger.ErrorCtx(ctx, "LLM returned a nil response")
 		return nil, fmt.Errorf("no response from LLM")
 	}
+	logger.InfoCtx(ctx, "LLM response received: %s", resp.Content)
 
 	jsonContent := utils.ExtractJSONArray(resp.Content)
 	if jsonContent == "" {
+		logger.WarnCtx(ctx, "No JSON array found in LLM response: %s", resp.Content)
 		return nil, fmt.Errorf("no JSON array found in LLM response: %s", resp.Content)
 	}
 
 	var plan []PlannedStep
 	if err := json.Unmarshal([]byte(jsonContent), &plan); err != nil {
+		logger.ErrorCtx(ctx, "Failed to unmarshal plan from LLM response: %v. Content: %s", err, jsonContent)
 		return nil, fmt.Errorf("failed to unmarshal plan from LLM response: %w. Response content: %s", err, jsonContent)
 	}
 
 	a.state.Set("plan", plan)
+	logger.InfoCtx(ctx, "Plan generated successfully: %v", plan)
 	return plan, nil
 }
 

@@ -1,6 +1,6 @@
-package prompts
+package rag
 
-const RagPrompt = `
+const BasicRagPrompt = `
 Answer the following question based on this context:
 ---
 Context:

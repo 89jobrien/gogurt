@@ -8,8 +8,10 @@ import (
 	"gogurt/internal/config"
 	"gogurt/internal/factories"
 	"gogurt/internal/logger"
+	"gogurt/internal/prompts"
 	"gogurt/internal/tools"
 	"gogurt/internal/tools/file_tools"
+	"gogurt/internal/tools/stateful"
 	"gogurt/internal/tools/web"
 	"strings"
 )
@@ -52,11 +54,8 @@ func (p *SerpApiPipe) Run(ctx context.Context, prompt string) (string, error) {
 	logger.Info("Running SerpApiPipe")
 	registry := tools.NewRegistry()
 	errs := registry.RegisterBatch([]*tools.Tool{
-		file_tools.ReadFileTool,
-		file_tools.WriteFileTool,
-		file_tools.ListFilesTool,
-		file_tools.SaveToScratchpadTool,
-		file_tools.ReadScratchpadTool,
+		stateful.ReadScratchpadTool,
+		stateful.SaveToScratchpadTool,
 		web.SerpAPISearchTool,
 	})
 	for _, err := range errs {
@@ -70,34 +69,36 @@ func (p *SerpApiPipe) Run(ctx context.Context, prompt string) (string, error) {
 		toolDescriptions = append(toolDescriptions, tool.Describe())
 	}
 
-	plannerPrompt := fmt.Sprintf(
-		"Based on the user's goal, create a plan consisting of a sequence of tool calls. "+
-			"Here are the available tools:\n\n%s\n\n"+
-			"Goal: %s\n\n"+
-			"Important Rules for the plan:\n"+
-			"1. The 'serpapi_search' tool directly returns search results and saves them to 'search_results.json'. You can use 'read_scratchpad' to access this content.\n"+
-			"2. The plan MUST be a valid, flat JSON array of objects.\n"+
-			"3. Each object must have a 'tool' and 'args' key.\n"+
-			"4. All string values in the JSON MUST be simple, self-contained strings. DO NOT use concatenation or other expressions within the JSON values.\n"+
-			"5. DO NOT include any comments or nested arrays.\n\n"+
-			"Example of a valid plan: "+
-			"[{\"tool\": \"serpapi_search\", \"args\": {\"query\": \"What is the capital of New Jersey?\"}}]",
-		strings.Join(toolDescriptions, "\n"),
-		prompt,
-	)
+	tmpl, err := prompts.NewPromptTemplate(prompts.PlannerPromptTemplate)
+	if err != nil {
+		logger.Error("Failed to create planner prompt template: %v", err)
+		return "", fmt.Errorf("failed to create planner prompt template: %w", err)
+	}
+
+	plannerPrompt, err := tmpl.Format(map[string]string{
+		"tool_descriptions": strings.Join(toolDescriptions, "\n"),
+		"goal":              prompt,
+	})
+	if err != nil {
+		logger.Error("Failed to format planner prompt: %v", err)
+		return "", fmt.Errorf("failed to format planner prompt: %w", err)
+	}
 
 	// 2. Plan the steps
 	planResult, err := p.planner.Invoke(ctx, plannerPrompt)
 	if err != nil {
+		logger.Error("Planning phase failed: %v", err)
 		return "", fmt.Errorf("planning phase failed: %w", err)
 	}
 
 	plan, ok := planResult.([]agent.PlannedStep)
 	if !ok {
+		logger.Error("Planner returned invalid type: expected []agent.PlannedStep, got %T", planResult)
 		return "", fmt.Errorf("planner returned invalid type: expected []agent.PlannedStep, got %T", planResult)
 	}
 
 	if len(plan) == 0 {
+		logger.Info("No plan was generated to achieve the goal.")
 		return "No plan was generated to achieve the goal.", nil
 	}
 
@@ -108,13 +109,16 @@ func (p *SerpApiPipe) Run(ctx context.Context, prompt string) (string, error) {
 	for i, step := range plan {
 		argsJSON, err := json.Marshal(step.Args)
 		if err != nil {
+			logger.Error("Failed to marshal args for step %d: %v", i+1, err)
 			return "", fmt.Errorf("failed to marshal args for step %d: %w", i+1, err)
 		}
 
+		logger.Info("Executing step %d ('%s') with args: %s", i+1, step.Tool, string(argsJSON))
 		task := fmt.Sprintf("%s:%s", step.Tool, string(argsJSON))
 
 		result, err := p.worker.Invoke(ctx, task)
 		if err != nil {
+			logger.Error("Execution of step %d ('%s') failed: %v", i+1, step.Tool, err)
 			return "", fmt.Errorf("execution of step %d ('%s') failed: %w", i+1, step.Tool, err)
 		}
 		lastResult = result

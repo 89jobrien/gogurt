@@ -7,6 +7,7 @@ import (
 	"gogurt/internal/config"
 	"gogurt/internal/factories"
 	"gogurt/internal/prompts"
+	"gogurt/internal/prompts/rag"
 	"gogurt/internal/types"
 	"gogurt/internal/vectorstores"
 	"strings"
@@ -24,7 +25,7 @@ func NewRAGPipe(ctx context.Context, cfg *config.Config) (*RAGPipe, error) {
 	aiAgent, _ := agent.NewAgent(types.AgentConfig{})
 	embedder := factories.GetEmbedder(cfg)
 	vectorStore := factories.GetVectorStore(cfg, embedder)
-	ragPrompt, err := prompts.NewPromptTemplate(prompts.RagPrompt)
+	ragPrompt, err := prompts.NewPromptTemplate(rag.BasicRagPrompt)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create prompt template: %w", err)
 	}

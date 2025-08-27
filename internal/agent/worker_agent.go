@@ -8,6 +8,7 @@ import (
 	"gogurt/internal/state"
 	"gogurt/internal/tools"
 	"gogurt/internal/types"
+	"reflect"
 	"strings"
 )
 
@@ -31,7 +32,7 @@ func (a *WorkerAgent) Init(ctx context.Context, config types.AgentConfig) error 
 	return nil
 }
 
-// Invoke takes a tool call string (e.g., "tool_name:{\"arg\":\"value\"}") and executes it.
+// Invoke takes a tool call string and executes it.
 func (a *WorkerAgent) Invoke(ctx context.Context, input any) (any, error) {
 	task, ok := input.(string)
 	if !ok {
@@ -46,7 +47,22 @@ func (a *WorkerAgent) Invoke(ctx context.Context, input any) (any, error) {
 		args = parts[1]
 	}
 
-	result, err := a.tools.Call(toolName, args)
+	tool := a.tools.Get(toolName)
+	if tool == nil {
+		return nil, fmt.Errorf("tool '%s' not found", toolName)
+	}
+
+	// Dynamically handle stateful vs stateless tools
+	var result any
+	var err error
+	if tool.Func.Type().NumIn() == 2 {
+		// This is a stateful tool
+		result, err = a.callStatefulTool(tool, args)
+	} else {
+		// This is a stateless tool
+		result, err = tool.Call(args)
+	}
+
 	if err != nil {
 		logger.ErrorCtx(ctx, "Tool call '%s' failed: %v", toolName, err)
 		return nil, fmt.Errorf("tool call failed for '%s': %w", toolName, err)
@@ -54,6 +70,24 @@ func (a *WorkerAgent) Invoke(ctx context.Context, input any) (any, error) {
 
 	logger.InfoCtx(ctx, "Tool '%s' executed successfully.", toolName)
 	return result, nil
+}
+
+func (a *WorkerAgent) callStatefulTool(tool *tools.Tool, jsonArgs string) (any, error) {
+	inputType := tool.Func.Type().In(0)
+	inputValue := reflect.New(inputType).Interface()
+	if err := json.Unmarshal([]byte(jsonArgs), &inputValue); err != nil {
+		return nil, fmt.Errorf("error unmarshaling arguments: %w", err)
+	}
+
+	results := tool.Func.Call([]reflect.Value{
+		reflect.ValueOf(inputValue).Elem(),
+		reflect.ValueOf(a.state),
+	})
+
+	if !results[1].IsNil() {
+		return nil, results[1].Interface().(error)
+	}
+	return results[0].Interface(), nil
 }
 
 // InvokeAsync is the asynchronous version of Invoke.
