@@ -100,6 +100,8 @@ github.com/sap-nocops/duckduckgogo v0.0.0-20201102135645-176990152850 h1:DsVS3HK
 github.com/sap-nocops/duckduckgogo v0.0.0-20201102135645-176990152850/go.mod h1:ur7dCshjxoPKHtsZgtb6n5gpOmzQNRQ5AT+yOLwaJxM=
 github.com/sashabaranov/go-openai v1.41.1 h1:zf5tM+GuxpyiyD9XZg8nCqu52eYFQg9OOew0gnIuDy4=
 github.com/sashabaranov/go-openai v1.41.1/go.mod h1:lj5b/K+zjTSFxVLijLSTDZuP7adOgerWeFyZLUhAKRg=
+github.com/serpapi/google-search-results-golang v0.0.0-20240325113416-ec93f510648e h1:pBW1bjkGQGBdbT7a4IKq4W3H2apMQ7qvf+E/Ng5/0DY=
+github.com/serpapi/google-search-results-golang v0.0.0-20240325113416-ec93f510648e/go.mod h1:B4KcaaGbSpn3vq3FxSCsEJrBirStags89KTusB2of58=
 github.com/shirou/gopsutil/v4 v4.25.1 h1:QSWkTc+fu9LTAWfkZwZ6j8MSUk4A2LV7rbH0ZqmLjXs=
 github.com/shirou/gopsutil/v4 v4.25.1/go.mod h1:RoUCUpndaJFtT+2zsZzzmhvbfGoDCJ7nFXKJf8GqJbI=
 github.com/sirupsen/logrus v1.9.3 h1:dueUQJ1C2q9oE3F7wvmSGAaVtTmUizReu6fjN8uqzbQ=

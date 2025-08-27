@@ -44,7 +44,10 @@ func Serve() {
 		file_tools.ReadFileTool,
 		file_tools.WriteFileTool,
 		file_tools.ListFilesTool,
+		file_tools.SaveToScratchpadTool,
+		file_tools.ReadScratchpadTool,
 		web.DuckDuckGoSearchTool,
+		web.SerpAPISearchTool,
 	})
 	for _, err := range errs {
 		if err != nil {
@@ -55,7 +58,7 @@ func Serve() {
 	stats := registry.Stats()
 	logger.Info("Available Tools: %v", stats.ToolNames)
 	logger.Info("Available Routes: %v", registeredRoutes)
-	logger.Info("Available Pipes: [ /workflow /ddgs ]")
+	logger.Info("Available Pipes: [ /workflow /ddgs /serpapi ]")
 	logger.Info("Server running at :8080")
 
 	handler := MiddlewareHandler(mux)

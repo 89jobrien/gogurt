@@ -8,7 +8,7 @@ import (
 	"gogurt/internal/logger"
 	"gogurt/internal/state"
 	"gogurt/internal/types"
-	"strings"
+	"gogurt/internal/utils"
 )
 
 // PlannedStep defines the structure for a single step in the generated plan.
@@ -58,7 +58,7 @@ func (a *PlannerAgent) Invoke(ctx context.Context, input any) (any, error) {
 		return nil, fmt.Errorf("no response from LLM")
 	}
 
-	jsonContent := extractJSONArray(resp.Content)
+	jsonContent := utils.ExtractJSONArray(resp.Content)
 	if jsonContent == "" {
 		return nil, fmt.Errorf("no JSON array found in LLM response: %s", resp.Content)
 	}
@@ -70,18 +70,6 @@ func (a *PlannerAgent) Invoke(ctx context.Context, input any) (any, error) {
 
 	a.state.Set("plan", plan)
 	return plan, nil
-}
-
-// extractJSONArray finds and returns the first JSON array from a string.
-func extractJSONArray(s string) string {
-	start := strings.Index(s, "[")
-	end := strings.LastIndex(s, "]")
-
-	if start != -1 && end != -1 && start < end {
-		return s[start : end+1]
-	}
-
-	return ""
 }
 
 // InvokeAsync is the asynchronous version of Invoke.

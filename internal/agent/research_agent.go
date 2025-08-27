@@ -45,7 +45,7 @@ func (a *ResearchAgent) Describe() *types.AgentDescription {
 }
 
 func (a *ResearchAgent) OnMessage(ctx context.Context, msg *types.StateMessage) (*types.StateMessage, error) {
-	logger.Info("Received message from %s: %s", msg.Sender, msg.Message)
+	logger.InfoCtx(ctx, "ResearchAgent received message from %s: %s", msg.Sender, msg.Message)
 	return &types.StateMessage{
 		Id:        "msg-websearch",
 		Sender:    types.Role("websearch"),
@@ -58,7 +58,6 @@ func (a *ResearchAgent) OnMessage(ctx context.Context, msg *types.StateMessage) 
 func (a *ResearchAgent) OnMessageAsync(ctx context.Context, msg *types.StateMessage) (<-chan *types.StateMessage, <-chan error) {
 	msgCh := make(chan *types.StateMessage, 1)
 	errCh := make(chan error, 1)
-	logger.Info("Received message from %s: %s", msg.Sender, msg.Message)
 	go func() {
 		defer close(msgCh)
 		defer close(errCh)
@@ -73,8 +72,8 @@ func (a *ResearchAgent) OnMessageAsync(ctx context.Context, msg *types.StateMess
 }
 
 func init() {
-	RegisterAgent("ResearchAgent", func() Agent { 
-		logger.Info("Creating ResearchAgent")
-		return &ResearchAgent{state: state.NewMemoryState()} 
+	RegisterAgent("ResearchAgent", func() Agent {
+		logger.Info("Initializing ResearchAgent")
+		return &ResearchAgent{state: state.NewMemoryState()}
 	})
 }

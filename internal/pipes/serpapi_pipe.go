@@ -28,6 +28,8 @@ func NewSerpApiPipe(ctx context.Context, cfg *config.Config) (*SerpApiPipe, erro
 		file_tools.ReadFileTool,
 		file_tools.WriteFileTool,
 		file_tools.ListFilesTool,
+		file_tools.SaveToScratchpadTool,
+		file_tools.ReadScratchpadTool,
 		web.SerpAPISearchTool,
 	})
 	for _, err := range errs {
@@ -53,6 +55,8 @@ func (p *SerpApiPipe) Run(ctx context.Context, prompt string) (string, error) {
 		file_tools.ReadFileTool,
 		file_tools.WriteFileTool,
 		file_tools.ListFilesTool,
+		file_tools.SaveToScratchpadTool,
+		file_tools.ReadScratchpadTool,
 		web.SerpAPISearchTool,
 	})
 	for _, err := range errs {
@@ -70,14 +74,17 @@ func (p *SerpApiPipe) Run(ctx context.Context, prompt string) (string, error) {
 		"Based on the user's goal, create a plan consisting of a sequence of tool calls. "+
 			"Here are the available tools:\n\n%s\n\n"+
 			"Goal: %s\n\n"+
-			"Important: The 'serpapi_search' tool directly returns the search results. No further steps are needed to read or process this output. "+
-			"Return ONLY a valid, flat JSON array of objects, where each object has a 'tool' and 'args' key. "+
-			"Do not include any comments or nested arrays. For example: "+
-			"[{\"tool\": \"serpapi_search\", \"args\": {\"query\": \"What is the capital of New Jersey?\", \"num_results\": 3}}]",
+			"Important Rules for the plan:\n"+
+			"1. The 'serpapi_search' tool directly returns search results and saves them to 'search_results.json'. You can use 'read_scratchpad' to access this content.\n"+
+			"2. The plan MUST be a valid, flat JSON array of objects.\n"+
+			"3. Each object must have a 'tool' and 'args' key.\n"+
+			"4. All string values in the JSON MUST be simple, self-contained strings. DO NOT use concatenation or other expressions within the JSON values.\n"+
+			"5. DO NOT include any comments or nested arrays.\n\n"+
+			"Example of a valid plan: "+
+			"[{\"tool\": \"serpapi_search\", \"args\": {\"query\": \"What is the capital of New Jersey?\"}}]",
 		strings.Join(toolDescriptions, "\n"),
 		prompt,
 	)
-
 
 	// 2. Plan the steps
 	planResult, err := p.planner.Invoke(ctx, plannerPrompt)

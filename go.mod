@@ -12,6 +12,7 @@ require (
 	github.com/fatih/color v1.18.0
 	github.com/ledongthuc/pdf v0.0.0-20250511090121-5959a4027728
 	github.com/sap-nocops/duckduckgogo v0.0.0-20201102135645-176990152850
+	github.com/serpapi/google-search-results-golang v0.0.0-20240325113416-ec93f510648e
 	github.com/yuin/goldmark v1.7.13
 )
 

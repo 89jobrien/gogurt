@@ -20,7 +20,6 @@ type WorkerAgent struct {
 // NewWorkerAgent creates a new WorkerAgent.
 func NewWorkerAgent(registry *tools.Registry) Agent {
 	logger.Info("Creating WorkerAgent")
-	logger.Info("Registry: %v", registry)
 	return &WorkerAgent{
 		state: state.NewMemoryState(),
 		tools: registry,
@@ -29,7 +28,6 @@ func NewWorkerAgent(registry *tools.Registry) Agent {
 
 // Init initializes the agent with a given configuration.
 func (a *WorkerAgent) Init(ctx context.Context, config types.AgentConfig) error {
-	// Initialization logic for WorkerAgent, if any, would go here.
 	return nil
 }
 
@@ -39,6 +37,7 @@ func (a *WorkerAgent) Invoke(ctx context.Context, input any) (any, error) {
 	if !ok {
 		return nil, fmt.Errorf("invalid input type for WorkerAgent: expected string, got %T", input)
 	}
+	logger.InfoCtx(ctx, "WorkerAgent invoked with task: %s", task)
 
 	parts := strings.SplitN(task, ":", 2)
 	toolName := parts[0]
@@ -49,9 +48,11 @@ func (a *WorkerAgent) Invoke(ctx context.Context, input any) (any, error) {
 
 	result, err := a.tools.Call(toolName, args)
 	if err != nil {
+		logger.ErrorCtx(ctx, "Tool call '%s' failed: %v", toolName, err)
 		return nil, fmt.Errorf("tool call failed for '%s': %w", toolName, err)
 	}
 
+	logger.InfoCtx(ctx, "Tool '%s' executed successfully.", toolName)
 	return result, nil
 }
 
@@ -74,9 +75,7 @@ func (a *WorkerAgent) InvokeAsync(ctx context.Context, input any) (<-chan any, <
 
 // OnMessage handles agent-to-agent communication.
 func (a *WorkerAgent) OnMessage(ctx context.Context, msg *types.StateMessage) (*types.StateMessage, error) {
-	logger.Info("Received message from %s: %s", msg.Sender, msg.Message)
 	result, err := a.Invoke(ctx, msg.Message)
-	logger.Info("result: %v", result)
 	if err != nil {
 		return nil, err
 	}
@@ -86,7 +85,6 @@ func (a *WorkerAgent) OnMessage(ctx context.Context, msg *types.StateMessage) (*
 
 // OnMessageAsync is the asynchronous version of OnMessage.
 func (a *WorkerAgent) OnMessageAsync(ctx context.Context, msg *types.StateMessage) (<-chan *types.StateMessage, <-chan error) {
-	logger.Info("Received message from %s: %s", msg.Sender, msg.Message)
 	resultCh := make(chan *types.StateMessage, 1)
 	errorCh := make(chan error, 1)
 	go func() {
@@ -99,9 +97,6 @@ func (a *WorkerAgent) OnMessageAsync(ctx context.Context, msg *types.StateMessag
 		}
 		resultCh <- res
 	}()
-	logger.Info("resultCh: %v", resultCh)
-	logger.Error("errorCh: %v", errorCh)
-	logger.Info("Completed processing message from %s: %s", msg.Sender, msg.Message)
 	return resultCh, errorCh
 }
 

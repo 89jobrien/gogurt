@@ -46,10 +46,10 @@ func SerpApiHandler(w http.ResponseWriter, r *http.Request) {
 	// Load configuration.
 	cfg := config.Load()
 
-	// Create and run the DDGS pipe.
-	serpApiPipe, err := pipes.NewDDGSPipe(ctx, cfg)
+	// Create and run the SerpApi pipe.
+	serpApiPipe, err := pipes.NewSerpApiPipe(ctx, cfg)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to create DDGS pipe: %v", err), http.StatusInternalServerError)
+		http.Error(w, fmt.Sprintf("Failed to create SerpApi pipe: %v", err), http.StatusInternalServerError)
 		return
 	}
 
