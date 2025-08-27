@@ -1,1 +1,0 @@
-$(cat search_results.json | jq -r '.[0].url')

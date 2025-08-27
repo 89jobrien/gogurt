@@ -7,12 +7,14 @@ import (
 	"gogurt/internal/agent"
 	"gogurt/internal/config"
 	"gogurt/internal/factories"
+	"gogurt/internal/llm"
 	"gogurt/internal/logger"
 	"gogurt/internal/prompts"
+	"gogurt/internal/prompts/planner"
 	"gogurt/internal/tools"
-	"gogurt/internal/tools/file_tools"
 	"gogurt/internal/tools/stateful"
 	"gogurt/internal/tools/web"
+	"gogurt/internal/types"
 	"strings"
 )
 
@@ -20,6 +22,7 @@ import (
 type SerpApiPipe struct {
 	planner agent.Agent
 	worker  agent.Agent
+	llm     llm.LLM // Added the LLM for the synthesis step
 }
 
 // NewSerpApiPipe creates a new SerpApiPipe.
@@ -27,11 +30,8 @@ func NewSerpApiPipe(ctx context.Context, cfg *config.Config) (*SerpApiPipe, erro
 	llm := factories.GetLLM(cfg)
 	registry := tools.NewRegistry()
 	errs := registry.RegisterBatch([]*tools.Tool{
-		file_tools.ReadFileTool,
-		file_tools.WriteFileTool,
-		file_tools.ListFilesTool,
-		file_tools.SaveToScratchpadTool,
-		file_tools.ReadScratchpadTool,
+		stateful.ReadScratchpadTool,
+		stateful.SaveToScratchpadTool,
 		web.SerpAPISearchTool,
 	})
 	for _, err := range errs {
@@ -46,6 +46,7 @@ func NewSerpApiPipe(ctx context.Context, cfg *config.Config) (*SerpApiPipe, erro
 	return &SerpApiPipe{
 		planner: planner,
 		worker:  worker,
+		llm:     llm, // Populate the new llm field
 	}, nil
 }
 
@@ -69,7 +70,8 @@ func (p *SerpApiPipe) Run(ctx context.Context, prompt string) (string, error) {
 		toolDescriptions = append(toolDescriptions, tool.Describe())
 	}
 
-	tmpl, err := prompts.NewPromptTemplate(prompts.PlannerPromptTemplate)
+	// Use the correct, updated prompt template
+	tmpl, err := prompts.NewPromptTemplate(planner.SerpApiPlannerPrompt)
 	if err != nil {
 		logger.Error("Failed to create planner prompt template: %v", err)
 		return "", fmt.Errorf("failed to create planner prompt template: %w", err)
@@ -124,8 +126,34 @@ func (p *SerpApiPipe) Run(ctx context.Context, prompt string) (string, error) {
 		lastResult = result
 	}
 
-	logger.Info("Result: %v", lastResult)
-	return fmt.Sprintf("%v", lastResult), nil
+	// 4. NEW: Synthesize the final answer
+	logger.Info("Synthesizing final answer from tool results.")
+	synthesisPrompt := fmt.Sprintf(
+		"Based on the following information, please provide a direct answer to the user's original question.\n\n"+
+			"Information:\n%v\n\n"+
+			"Original Question: %s",
+		lastResult,
+		prompt,
+	)
+
+	synthesisMessages := []types.ChatMessage{
+		{Role: types.RoleSystem, Content: "You are a helpful assistant that answers questions based on provided context."},
+		{Role: types.RoleUser, Content: synthesisPrompt},
+	}
+
+	finalAnswer, err := p.llm.Generate(ctx, synthesisMessages)
+	if err != nil {
+		logger.Error("Final answer synthesis failed: %v", err)
+		return "", fmt.Errorf("final answer synthesis failed: %w", err)
+	}
+
+	if finalAnswer == nil {
+		logger.Error("LLM returned a nil response for synthesis")
+		return "", fmt.Errorf("no response from LLM for synthesis")
+	}
+
+	logger.Info("Result: %v", finalAnswer.Content)
+	return finalAnswer.Content, nil
 }
 
 // ARun is the asynchronous version of Run.

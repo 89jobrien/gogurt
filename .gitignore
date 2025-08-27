@@ -1,5 +1,6 @@
 # Custom
 ignoreme/
+WORKING_DIR/*
 
 # IDE and editor specific files
 .vscode/

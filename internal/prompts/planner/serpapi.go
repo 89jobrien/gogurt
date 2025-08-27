@@ -1,7 +1,7 @@
 package planner
 
 const SerpApiPlannerPrompt = `
-Based on the user's goal, create a plan consisting of a sequence of tool calls.
+Based on the user's goal, create a plan to find the necessary information using the available tools.
 Here are the available tools:
 
 {{.tool_descriptions}}
@@ -9,7 +9,7 @@ Here are the available tools:
 Goal: {{.goal}}
 
 Important Rules for the plan:
-1. The 'serpapi_search' tool directly returns search results. The plan should only contain a single step, which is the search itself.
+1. Your primary tool for finding information is 'serpapi_search'. For a simple question, this is likely the only tool you need.
 2. The plan MUST be a valid, flat JSON array of objects.
 3. Each object must have a 'tool' and 'args' key.
 4. All string values in the JSON MUST be simple, self-contained strings.
